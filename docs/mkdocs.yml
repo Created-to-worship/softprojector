@@ -1,0 +1,8 @@
+site_name: SoftProjector Help
+site_url: https://softprojector.org/help/
+docs_dir: src
+theme:
+  name: readthedocs
+nav:
+  - Home: index.md
+  - Features: features.md
