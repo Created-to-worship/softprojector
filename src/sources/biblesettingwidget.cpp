@@ -590,7 +590,9 @@ void BibleSettingWidget::updateSecondaryBibleMenu()
     secondary_bibles.removeOne(pbible);
 
     secondary_id_list = bible_id_list;
-    secondary_id_list.removeAt(ui->comboBoxPrimaryBible->currentIndex());
+    int pidx = ui->comboBoxPrimaryBible->currentIndex();
+    if (pidx >= 0 && pidx < secondary_id_list.size())
+    secondary_id_list.removeAt(pidx);
     ui->comboBoxSecondaryBible->clear();
     ui->comboBoxSecondaryBible->addItem(tr("None"));
     ui->comboBoxSecondaryBible->addItems(secondary_bibles);
@@ -611,7 +613,9 @@ void BibleSettingWidget::updateSecondaryBibleMenu2()
     secondary_bibles2.removeOne(pbible);
 
     secondary_id_list2 = bible_id_list;
-    secondary_id_list2.removeAt(ui->comboBoxPrimaryBible2->currentIndex());
+    int pidx = ui->comboBoxPrimaryBible2->currentIndex();
+    if (pidx >= 0 && pidx < secondary_id_list2.size())
+    secondary_id_list2.removeAt(pidx);
     ui->comboBoxSecondaryBible2->clear();
     ui->comboBoxSecondaryBible2->addItem(tr("None"));
     ui->comboBoxSecondaryBible2->addItems(secondary_bibles2);
@@ -632,7 +636,9 @@ void BibleSettingWidget::updateSecondaryBibleMenu3()
     secondary_bibles3.removeOne(pbible);
 
     secondary_id_list3 = bible_id_list;
-    secondary_id_list3.removeAt(ui->comboBoxPrimaryBible3->currentIndex());
+    int pidx = ui->comboBoxPrimaryBible3->currentIndex();
+    if (pidx >= 0 && pidx < secondary_id_list3.size())
+    secondary_id_list3.removeAt(pidx);
     ui->comboBoxSecondaryBible3->clear();
     ui->comboBoxSecondaryBible3->addItem(tr("None"));
     ui->comboBoxSecondaryBible3->addItems(secondary_bibles3);
@@ -653,7 +659,9 @@ void BibleSettingWidget::updateSecondaryBibleMenu4()
     secondary_bibles4.removeOne(pbible);
 
     secondary_id_list4 = bible_id_list;
-    secondary_id_list4.removeAt(ui->comboBoxPrimaryBible4->currentIndex());
+    int pidx = ui->comboBoxPrimaryBible4->currentIndex();
+    if (pidx >= 0 && pidx < secondary_id_list4.size())
+    secondary_id_list4.removeAt(pidx);
     ui->comboBoxSecondaryBible4->clear();
     ui->comboBoxSecondaryBible4->addItem(tr("None"));
     ui->comboBoxSecondaryBible4->addItems(secondary_bibles4);
