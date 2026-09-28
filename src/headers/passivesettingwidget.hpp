@@ -35,7 +35,7 @@ class PassiveSettingWidget : public QWidget
     Q_OBJECT
     
 public:
-    explicit PassiveSettingWidget(QWidget *parent = 0);
+    explicit PassiveSettingWidget(QWidget *parent = nullptr);
     ~PassiveSettingWidget();
 
 public slots:

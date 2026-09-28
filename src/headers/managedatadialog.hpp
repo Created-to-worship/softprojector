@@ -50,7 +50,7 @@ class ManageDataDialog : public QDialog {
     Q_OBJECT
     Q_DISABLE_COPY(ManageDataDialog)
 public:
-    explicit ManageDataDialog(QWidget *parent = 0);
+    explicit ManageDataDialog(QWidget *parent = nullptr);
     virtual ~ManageDataDialog();
     bool reload_bible;
     bool reload_songbook;
@@ -77,7 +77,7 @@ private:
     ThemeModel *themeModel;
     QNetworkAccessManager downManager;
     QNetworkReply *modDownload;
-    QNetworkReply *currentDownload;
+    QNetworkReply *currentDownload = nullptr;
     QQueue<Module> downQueue;
     QQueue<QString> modQueue;
     QString downType;

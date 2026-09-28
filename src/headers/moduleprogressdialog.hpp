@@ -31,7 +31,7 @@ class ModuleProgressDialog : public QDialog
     Q_OBJECT
     
 public:
-    explicit ModuleProgressDialog(QWidget *parent = 0);
+    explicit ModuleProgressDialog(QWidget *parent = nullptr);
     ~ModuleProgressDialog();
 
 public slots:

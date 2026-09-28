@@ -44,7 +44,7 @@ class ProjectorDisplayScreen : public QWidget
     Q_OBJECT
 
 public:
-    explicit ProjectorDisplayScreen(QWidget *parent = 0);
+    explicit ProjectorDisplayScreen(QWidget *parent = nullptr);
     ~ProjectorDisplayScreen();
 
 public slots:
@@ -80,9 +80,13 @@ private slots:
     void nextSlideClicked();
     void prevSlideClicked();
 
-    void videoPositionChanged(int position);
-    void videoDurationChanged(int duration);
-    void videoPlaybackStateChanged(int state);
+    // Receivers for the QML root object's signals. They deliberately do NOT
+    // share names with the public signals below: overloading a slot and a
+    // signal under one name makes &ProjectorDisplayScreen::videoPositionChanged
+    // ambiguous, which is a compile error in pointer-to-member connect().
+    void onQmlPositionChanged(int position);
+    void onQmlDurationChanged(int duration);
+    void onQmlPlaybackStateChanged(int state);  // QML MediaPlayer.playbackState is an int
     void playbackStopped();
 
 signals:
@@ -105,7 +109,10 @@ private:
     ImageGenerator imGen;
     bool backImSwitch1, textImSwitch1, backImSwitch2, textImSwitch2;
     bool isNewBack, back1to2, text1to2;
-    int tranType,backType;
+    int tranType = TR_NONE;   // were uninitialized: read by updateScreen() before first render
+    int backType = B_NONE;
+
+    QObject *qmlChild(const char *objectName) const;
     QColor m_color;
    // DisplayControlsSettings mySettings;
 

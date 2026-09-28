@@ -34,7 +34,7 @@ class GeneralSettingWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit GeneralSettingWidget(QWidget *parent = 0);
+    explicit GeneralSettingWidget(QWidget *parent = nullptr);
     ~GeneralSettingWidget();
 
 private:

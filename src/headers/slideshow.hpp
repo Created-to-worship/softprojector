@@ -39,6 +39,14 @@ public:
     QPixmap image;
     QPixmap imageSmall;
     QPixmap imagePreview;
+
+    // Full-size slides are kept encoded (as stored in the database) and decoded
+    // on demand. Decoding every slide up front held ~3.7 MB per 1280px slide,
+    // i.e. hundreds of MB for a large slide show.
+    QByteArray imageData;
+    void decodeImage();                 // image <- imageData (no-op if already decoded)
+    void releaseImage();                // drop the decoded copy if it can be re-decoded
+    QByteArray encodedImage() const;    // bytes to store: original encoding when available
 };
 
 class SlideShowInfo

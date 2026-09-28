@@ -32,7 +32,7 @@ class SongSettingWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SongSettingWidget(QWidget *parent = 0);
+    explicit SongSettingWidget(QWidget *parent = nullptr);
     ~SongSettingWidget();
 
 public slots:

@@ -73,6 +73,7 @@ public:
     QString getSongbookName();
     bool isValid();
     void getSettings(SongSettings &settings);
+    void decodeBackground();   // decode backgroundData into background on first use
 
     //members
     int songID; // Database ID of this song
@@ -98,6 +99,10 @@ public:
     bool useBackground;
     QString backgroundName;
     QPixmap background;
+    // Encoded image bytes from the database. Decoding every song's background
+    // at startup cost ~8 MB of RAM per 1080p image; decodeBackground() does it
+    // lazily, the first time the song is actually used.
+    QByteArray backgroundData;
 
 private:
     void setDefaults();
@@ -136,7 +141,7 @@ class SongProxyModel : public QSortFilterProxyModel
     Q_OBJECT
 
 public:
-    SongProxyModel(QObject *parent = 0);
+    SongProxyModel(QObject *parent = nullptr);
     void setFilterString(QString new_string, bool new_match_beginning, bool new_exact_match);
     void setSongbookFilter(QString new_songbook);
     void setCategoryFilter(int category);

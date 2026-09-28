@@ -27,7 +27,7 @@ class VideoPlayerWidget : public QVideoWidget
 {
     Q_OBJECT
 public:
-    VideoPlayerWidget(QWidget *parent = 0);
+    VideoPlayerWidget(QWidget *parent = nullptr);
 public slots:
 
     void setFullScreen(bool);

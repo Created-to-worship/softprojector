@@ -98,7 +98,7 @@ class AnnounceProxyModel : public QSortFilterProxyModel
 {
     Q_OBJECT
 public:
-    AnnounceProxyModel(QObject *parent = 0);
+    AnnounceProxyModel(QObject *parent = nullptr);
     void setFilterString(QString new_string, bool new_match_beginning, bool new_exact_match);
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const;
 

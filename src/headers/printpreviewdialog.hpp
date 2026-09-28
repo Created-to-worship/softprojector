@@ -37,7 +37,7 @@ class PrintPreviewDialog : public QDialog
     Q_OBJECT
     
 public:
-    explicit PrintPreviewDialog(QWidget *parent = 0);
+    explicit PrintPreviewDialog(QWidget *parent = nullptr);
     ~PrintPreviewDialog();
 
 public slots:

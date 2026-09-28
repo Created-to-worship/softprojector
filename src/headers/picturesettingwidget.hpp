@@ -33,7 +33,7 @@ class PictureSettingWidget : public QWidget
     Q_OBJECT
     
 public:
-    explicit PictureSettingWidget(QWidget *parent = 0);
+    explicit PictureSettingWidget(QWidget *parent = nullptr);
     ~PictureSettingWidget();
     void setSettings(SlideShowSettings &settings);
     void getSettings(SlideShowSettings &settings);

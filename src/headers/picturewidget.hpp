@@ -36,7 +36,7 @@ class PictureWidget : public QWidget
     Q_OBJECT
     
 public:
-    explicit PictureWidget(QWidget *parent = 0);
+    explicit PictureWidget(QWidget *parent = nullptr);
     ~PictureWidget();
     
 signals:

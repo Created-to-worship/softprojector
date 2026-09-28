@@ -30,7 +30,7 @@ class Highlight : public QSyntaxHighlighter
     Q_OBJECT
 
 public:
-    Highlight(QTextDocument *parent = 0);
+    Highlight(QTextDocument *parent = nullptr);
 
 protected:
     void highlightBlock(const QString &text);
@@ -52,7 +52,7 @@ class HighlightAnnounce : public QSyntaxHighlighter
     Q_OBJECT
 
 public:
-    HighlightAnnounce(QTextDocument *parent = 0);
+    HighlightAnnounce(QTextDocument *parent = nullptr);
 
 protected:
     void highlightBlock(const QString &text);
@@ -74,7 +74,7 @@ class HighlightSearch : public QSyntaxHighlighter
     Q_OBJECT
 
 public:
-    HighlightSearch(QTextDocument *parent = 0);
+    HighlightSearch(QTextDocument *parent = nullptr);
     void setHighlightText(QString text);
 
 protected:
@@ -95,7 +95,7 @@ class HighlighterDelegate: public QItemDelegate
     Q_OBJECT
 
 public:
-    HighlighterDelegate(QObject *parent = 0);
+    HighlighterDelegate(QObject *parent = nullptr);
     HighlightSearch *highlighter;
 
 protected:

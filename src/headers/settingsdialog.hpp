@@ -39,7 +39,7 @@ class SettingsDialog : public QDialog {
     Q_DISABLE_COPY(SettingsDialog)
 
 public:
-    explicit SettingsDialog(QWidget *parent = 0);
+    explicit SettingsDialog(QWidget *parent = nullptr);
     virtual ~SettingsDialog();
     void updateSecondaryBibleMenu();
 

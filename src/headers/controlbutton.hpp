@@ -28,8 +28,8 @@ class ControlButton : public QPushButton
     Q_OBJECT
 
 public:
-    ControlButton(QWidget * parent = 0);
-    ControlButton(const QIcon & icon, const QIcon & iconHovered, const QIcon & iconPressed, QWidget * parent = 0);
+    ControlButton(QWidget * parent = nullptr);
+    ControlButton(const QIcon & icon, const QIcon & iconHovered, const QIcon & iconPressed, QWidget * parent = nullptr);
 
     ~ControlButton();
 

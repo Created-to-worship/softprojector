@@ -34,7 +34,7 @@ class MediaControl : public QWidget
     Q_OBJECT
 
 public:
-    explicit MediaControl(QWidget *parent = 0);
+    explicit MediaControl(QWidget *parent = nullptr);
     ~MediaControl();
 
 public slots:
@@ -56,7 +56,7 @@ private slots:
     void on_pushButtonPlayPause_clicked();
     void on_pushButtonMute_toggled(bool checked);
     void on_horizontalSliderTime_sliderReleased();
-    void on_horizontalSliderVolume_sliderMoved(int position);
+    void on_horizontalSliderVolume_valueChanged(int value);  // also covers keyboard, wheel and groove clicks
 
 
 

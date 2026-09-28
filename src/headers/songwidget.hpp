@@ -33,7 +33,7 @@ class SongWidget : public QWidget {
     Q_OBJECT
     Q_DISABLE_COPY(SongWidget)
 public:
-    explicit SongWidget(QWidget *parent = 0);
+    explicit SongWidget(QWidget *parent = nullptr);
     virtual ~SongWidget();
     Song currentSong();
     SongsModel *songs_model;

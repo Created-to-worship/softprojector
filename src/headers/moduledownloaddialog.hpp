@@ -31,7 +31,7 @@ class ModuleDownloadDialog : public QDialog
     Q_OBJECT
     
 public:
-    explicit ModuleDownloadDialog(QWidget *parent = 0);
+    explicit ModuleDownloadDialog(QWidget *parent = nullptr);
     ~ModuleDownloadDialog();
 
 public slots:

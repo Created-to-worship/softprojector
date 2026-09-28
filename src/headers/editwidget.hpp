@@ -35,7 +35,7 @@ class EditWidget : public QWidget {
     Q_OBJECT
     Q_DISABLE_COPY(EditWidget)
 public:
-    explicit EditWidget(QWidget *parent = 0);
+    explicit EditWidget(QWidget *parent = nullptr);
     virtual ~EditWidget();
 
 public slots:

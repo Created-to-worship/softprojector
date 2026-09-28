@@ -66,14 +66,14 @@ class SongCounter : public QDialog
 {
     Q_OBJECT
 public:
-    explicit SongCounter(QWidget *parent = 0,QString loc = "en");
+    explicit SongCounter(QWidget *parent = nullptr,QString loc = "en");
     ~SongCounter();
 
 private:
     QString splocale;
     QList<Counter> song_count_list;
     SongCounterModel *songCounterModel;
-    QSortFilterProxyModel *songCounterProxyModel;
+    QSortFilterProxyModel *songCounterProxyModel = nullptr;
     Ui::SongCounter *ui;
 
 public slots:

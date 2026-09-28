@@ -35,7 +35,7 @@ class BibleSettingWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit BibleSettingWidget(QWidget *parent = 0);
+    explicit BibleSettingWidget(QWidget *parent = nullptr);
     ~BibleSettingWidget();
 
 public slots:

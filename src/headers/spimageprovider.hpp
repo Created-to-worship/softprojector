@@ -27,9 +27,9 @@ class SpImageProvider : public QQuickImageProvider
 
 public:
     SpImageProvider();
-    QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requestedSize);
+    QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requestedSize) override;
 
-    void setPixMap(QPixmap &p);
+    void setPixMap(const QPixmap &p);
 
 private:
     QPixmap m_pixmap;

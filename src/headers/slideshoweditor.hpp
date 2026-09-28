@@ -39,7 +39,7 @@ class SlideShowEditor : public QDialog
     Q_OBJECT
     Q_DISABLE_COPY(SlideShowEditor)// for Dialog test
 public:
-    explicit SlideShowEditor(QWidget *parent = 0);
+    explicit SlideShowEditor(QWidget *parent = nullptr);
     ~SlideShowEditor();
     void setSettings(SlideShowSettings &settings){mySettings = settings;}
     void setSlideShow(SlideShow ss);

@@ -32,7 +32,7 @@ class AnnounceWidget : public QWidget {
     Q_OBJECT
     Q_DISABLE_COPY(AnnounceWidget)
 public:
-    explicit AnnounceWidget(QWidget *parent = 0);
+    explicit AnnounceWidget(QWidget *parent = nullptr);
     virtual ~AnnounceWidget();
 
 public slots:

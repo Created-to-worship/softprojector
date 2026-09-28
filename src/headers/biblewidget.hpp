@@ -35,7 +35,7 @@ class BibleWidget : public QWidget {
     Q_OBJECT
     Q_DISABLE_COPY(BibleWidget)
 public:
-    explicit BibleWidget(QWidget *parent = 0);
+    explicit BibleWidget(QWidget *parent = nullptr);
     virtual ~BibleWidget();
     Bible bible;
     QString getCurrentBook();

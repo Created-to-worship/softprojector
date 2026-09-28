@@ -32,7 +32,7 @@ class AddSongbookDialog : public QDialog {
 public:
     QString title;
     QString info;
-    explicit AddSongbookDialog(QWidget *parent = 0);
+    explicit AddSongbookDialog(QWidget *parent = nullptr);
     virtual ~AddSongbookDialog();
 
 public slots:

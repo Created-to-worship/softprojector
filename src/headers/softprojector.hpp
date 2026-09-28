@@ -62,7 +62,7 @@ class SoftProjector : public QMainWindow
     Q_OBJECT
 
 public:
-    SoftProjector(QWidget *parent = 0);
+    SoftProjector(QWidget *parent = nullptr);
     ~SoftProjector();
     SongWidget *songWidget;
     BibleWidget *bibleWidget;
@@ -77,9 +77,9 @@ public:
     MediaWidget *mediaPlayer;
     MediaControl *mediaControls;
 
-    bool showing; // whether we are currently showing to the projector
+    bool showing = false; // whether we are currently showing to the projector
     Song current_song;
-    int current_song_verse;
+    int current_song_verse = 0;
     Verse current_verse;
     Announcement currentAnnounce;
     QString version_string;
@@ -104,21 +104,24 @@ private:
     Ui::SoftProjectorClass *ui;
     SettingsDialog *settingsDialog;
     HelpDialog *helpDialog;
-    PresentationType pType;
-    bool new_list;
+    // These were uninitialized and could be read (e.g. by updateScreen() via the
+    // settings dialog) before anything had been sent to the projector.
+    PresentationType pType = BIBLE;
+    bool new_list = false;
     QActionGroup *languageGroup;
     QString languagePath;
     QTranslator translator;
+    QTranslator qtTranslator;   // Qt's own strings (standard dialogs/buttons)
 
     //For saving and opening schedule files
     //QString project_file_path;
     QString schedule_file_path;
-    bool is_schedule_saved;
+    bool is_schedule_saved = true;
     QString cur_locale;
-    bool isSingleScreen;
-    bool hasDisplayScreen2;
-    bool hasDisplayScreen3;
-    bool hasDisplayScreen4;
+    bool isSingleScreen = true;
+    bool hasDisplayScreen2 = false;
+    bool hasDisplayScreen3 = false;
+    bool hasDisplayScreen4 = false;
 
     // shortcuts
     QShortcut *shpgUP;
@@ -138,6 +141,8 @@ private:
     // Schelude list
     QList<Schedule> schedule;
     QDir appDataDir;
+
+    int insertScheduleRow(QSqlQuery &q, const Schedule &sc, int order);
 
 private slots:
     void showDisplayScreen(bool show);

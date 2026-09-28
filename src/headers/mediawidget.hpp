@@ -22,6 +22,7 @@
 
 #include <QtWidgets>
 #include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QtSql>
 //#include <phonon>
 //#include <phonon/MediaObject>
@@ -41,7 +42,7 @@ class MediaWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit MediaWidget(QWidget *parent = 0);
+    explicit MediaWidget(QWidget *parent = nullptr);
     ~MediaWidget();
 
 public slots:
@@ -87,6 +88,7 @@ private:
     QIcon unmuteIcon;
 
     QMediaPlayer *player;
+    QAudioOutput *audioOutput; // Qt6: volume/mute moved off QMediaPlayer onto QAudioOutput
     VideoPlayerWidget *videoWidget;
     MediaControl *mediaControls;
 
@@ -98,7 +100,10 @@ private:
     QStringList mediaFileNames;
     QUrl currentMediaUrl;
 
-    bool isReadyToPlay;
+    bool isReadyToPlay = false;
+    bool pendingGoLive = false;   // go live as soon as the media has loaded
+
+    void goLiveNow();
 };
 
 #endif // MEDIAWIDGET_HPP

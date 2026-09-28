@@ -32,7 +32,7 @@ class HelpDialog : public QDialog {
     Q_OBJECT
     Q_DISABLE_COPY(HelpDialog)
 public:
-    explicit HelpDialog(QWidget *parent = 0);
+    explicit HelpDialog(QWidget *parent = nullptr);
     virtual ~HelpDialog();
 
 protected:
@@ -40,6 +40,9 @@ protected:
 
 private:
     Ui::HelpDialog *ui;
+
+public slots:
+    void openOnlineHelp();
 
 private slots:
     void on_close_pushButton_clicked();

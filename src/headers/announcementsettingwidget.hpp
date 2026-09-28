@@ -34,7 +34,7 @@ class AnnouncementSettingWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit AnnouncementSettingWidget(QWidget *parent = 0);
+    explicit AnnouncementSettingWidget(QWidget *parent = nullptr);
     ~AnnouncementSettingWidget();
 
 public slots:

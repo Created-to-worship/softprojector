@@ -34,7 +34,7 @@ class EditAnnouncementDialog : public QDialog
     Q_OBJECT
     
 public:
-    explicit EditAnnouncementDialog(QWidget *parent = 0);
+    explicit EditAnnouncementDialog(QWidget *parent = nullptr);
     ~EditAnnouncementDialog();
 
 public slots:

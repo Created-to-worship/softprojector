@@ -35,7 +35,7 @@ public:
     QString abbr;
     QString info;
     bool isRtoL;
-    explicit BibleInformationDialog(QWidget *parent = 0);
+    explicit BibleInformationDialog(QWidget *parent = nullptr);
     ~BibleInformationDialog();
 
 public slots:
