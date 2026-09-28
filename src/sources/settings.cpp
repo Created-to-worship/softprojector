@@ -803,9 +803,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "displayIsOnTop")
                     general.displayIsOnTop = (v=="true");
                 else if(n == "displayOnStartUp")
@@ -827,8 +827,11 @@ void Settings::loadSettings()
                 else if (n == "dcAlignment")
                 {
                     QStringList alinglist = v.split(",");
-                    general.displayControls.alignmentV = alinglist.at(0).toInt();
-                    general.displayControls.alignmentH = alinglist.at(1).toInt();
+                    if(alinglist.count() >= 2)
+                    {
+                        general.displayControls.alignmentV = alinglist.at(0).toInt();
+                        general.displayControls.alignmentH = alinglist.at(1).toInt();
+                    }
                 }
                 else if (n == "dcOpacity")
                     general.displayControls.opacity = v.toDouble();
@@ -841,9 +844,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
 
                 if(n=="spSplitter")
                     spMain.spSplitter = textToByt(v);
@@ -866,9 +869,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "primary")
                     bibleSets.primaryBible = v;
                 else if(n == "secondary")
@@ -886,9 +889,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "primary")
                     bibleSets2.primaryBible = v;
                 else if(n == "secondary")
@@ -904,9 +907,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "primary")
                     bibleSets3.primaryBible = v;
                 else if(n == "secondary")
@@ -922,9 +925,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "primary")
                     bibleSets4.primaryBible = v;
                 else if(n == "secondary")
@@ -940,9 +943,9 @@ void Settings::loadSettings()
             for(int i(0);i<values.count();++i)
             {
                 s = values.at(i);
-                set = s.split("=");
-                n = set.at(0).trimmed();
-                v = set.at(1).trimmed();
+                n = s.section('=', 0, 0).trimmed();
+                v = s.section('=', 1).trimmed();   // set.at(1) was out of range for a line without '='
+
                 if(n == "expandSmall")
                     slideSets.expandSmall = (v == "true");
                 else if(n == "fitType")
@@ -1030,30 +1033,40 @@ void Settings::saveSettings()
     pset += "\nboundType = " + QString::number(slideSets.boundType);
     pset += "\nboundWidth = " + QString::number(slideSets.boundWidth);
 
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'general'").arg(gset));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'spMain'").arg(spset));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'bible1'").arg(b1set));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'bible2'").arg(b2set));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'bible3'").arg(b3set));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'bible4'").arg(b4set));
-    sq.exec(QString("UPDATE Settings SET sets = '%1' WHERE type = 'pix'").arg(pset));
+    const QList<QPair<QString, QString>> rows = {
+        {"general", gset}, {"spMain", spset}, {"bible1", b1set}, {"bible2", b2set},
+        {"bible3", b3set}, {"bible4", b4set}, {"pix", pset} };
+    sq.prepare("UPDATE Settings SET sets = ? WHERE type = ?");
+    for(const auto &row : rows)
+    {
+        sq.bindValue(0, row.second);
+        sq.bindValue(1, row.first);
+        sq.exec();
+    }
 }
 
 void Settings::saveNewSettings()
 {
+    // Only add the rows that are missing. The table has no UNIQUE constraint on
+    // `type`, so the old "INSERT OR REPLACE" duplicated every row whenever any
+    // single row was missing.
     QSqlQuery sq;
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('general', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('spMain', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('bible1', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('bible2', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('bible3', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('bible4', 'n=v')");
-    sq.exec("INSERT OR REPLACE INTO Settings (type, sets) VALUES ('pix', 'n=v')");
+    sq.prepare("INSERT INTO Settings (type, sets) SELECT ?, 'n=v' "
+               "WHERE NOT EXISTS (SELECT 1 FROM Settings WHERE type = ?)");
+    for(const char *type : {"general", "spMain", "bible1", "bible2", "bible3", "bible4", "pix"})
+    {
+        sq.bindValue(0, QString::fromLatin1(type));
+        sq.bindValue(1, QString::fromLatin1(type));
+        sq.exec();
+    }
 
     saveSettings();
 }
 
 QByteArray Settings::textToByt(QString text)
 {
-    return text.toUtf8();
+    // States are saved with QByteArray::toHex(), so they must be hex-DECODED.
+    // (This used to return text.toUtf8(), so restoreState() always received the
+    // ASCII hex text and splitter/window layouts were never restored.)
+    return QByteArray::fromHex(text.toLatin1());
 }

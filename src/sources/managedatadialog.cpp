@@ -311,7 +311,7 @@ void ManageDataDialog::importSongbook(QString path)
                 sq.addBindValue(split[4]);//words
                 sq.addBindValue(split[5]);//music
                 QString st = split[6];
-                if(st.contains(QRegularExpression("@$|@%")))
+                if(st.contains(QRegularExpression(QStringLiteral("@\\$|@%"))))
                     st = cleanSongLines(st);
                 sq.addBindValue(st);//song text
                 if (split.count() > 7)
@@ -350,7 +350,7 @@ void ManageDataDialog::importSongbook(QString path)
             while(!xml.atEnd())
             {
                 xml.readNext();
-                if(xml.StartElement && xml.name() == "spSongBook"_L1)
+                if(xml.isStartElement() && xml.name() == "spSongBook"_L1)
                 {
                     double sb_version = xml.attributes().value("version").toString().toDouble();
                     if(sb_version == 2.0) // check supported songbook version
@@ -363,23 +363,23 @@ void ManageDataDialog::importSongbook(QString path)
                                    "background_name, count, date)"
                                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
-                        while(xml.tokenString() != "EndElement" && xml.name() != "spSongBook"_L1)
+                        while(!xml.atEnd() && xml.tokenString() != "EndElement" && xml.name() != "spSongBook"_L1)
                         {
                             xml.readNext();
-                            if(xml.StartElement && xml.name() == "SongBook"_L1)
+                            if(xml.isStartElement() && xml.name() == "SongBook"_L1)
                             {
                                 QString xtitle,xinfo;
                                 // Read songbook data
                                 xml.readNext();
-                                while(xml.tokenString() != "EndElement")
+                                while(!xml.atEnd() && xml.tokenString() != "EndElement")
                                 {
                                     xml.readNext();
-                                    if(xml.StartElement && xml.name() == "title"_L1)
+                                    if(xml.isStartElement() && xml.name() == "title"_L1)
                                     {
                                         xtitle = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "info"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "info"_L1)
                                     {
                                         xinfo = xml.readElementText();
                                         xml.readNext();
@@ -401,82 +401,82 @@ void ManageDataDialog::importSongbook(QString path)
 
                                 xml.readNext();
                             }
-                            else if (xml.StartElement && xml.name() == "Song"_L1)
+                            else if (xml.isStartElement() && xml.name() == "Song"_L1)
                             {
                                 QString xnum,xtitle,xcat,xtune,xwords,xmusic,xtext,xnotes,
                                         xuse,xalign,xcolor,xfont,xback,xcount,xdate;
                                 // Read song data
                                 xnum = xml.attributes().value("number").toString();
                                 xml.readNext();
-                                while(xml.tokenString() != "EndElement")
+                                while(!xml.atEnd() && xml.tokenString() != "EndElement")
                                 {
                                     xml.readNext();
-                                    if(xml.StartElement && xml.name() == "title"_L1)
+                                    if(xml.isStartElement() && xml.name() == "title"_L1)
                                     {
                                         xtitle = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "category"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "category"_L1)
                                     {
                                         xcat = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "tune"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "tune"_L1)
                                     {
                                         xtune = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "words"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "words"_L1)
                                     {
                                         xwords = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "music"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "music"_L1)
                                     {
                                         xmusic = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "song_text"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "song_text"_L1)
                                     {
                                         xtext = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "notes"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "notes"_L1)
                                     {
                                         xnotes = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "use_private"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "use_private"_L1)
                                     {
                                         xuse = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "alignment"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "alignment"_L1)
                                     {
                                         xalign = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "color"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "color"_L1)
                                     {
                                         xcolor = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "font"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "font"_L1)
                                     {
                                         xfont = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "background"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "background"_L1)
                                     {
                                         xback = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "count"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "count"_L1)
                                     {
                                         xcount = xml.readElementText();
                                         xml.readNext();
                                     }
-                                    else if(xml.StartElement && xml.name() == "date"_L1)
+                                    else if(xml.isStartElement() && xml.name() == "date"_L1)
                                     {
                                         xdate = xml.readElementText();
                                         xml.readNext();
@@ -490,7 +490,7 @@ void ManageDataDialog::importSongbook(QString path)
                                 sq.addBindValue(xtune);
                                 sq.addBindValue(xwords);
                                 sq.addBindValue(xmusic);
-                                if(xtext.contains(QRegularExpression("@$|@%")))
+                                if(xtext.contains(QRegularExpression(QStringLiteral("@\\$|@%"))))
                                     xtext = cleanSongLines(xtext);
                                 sq.addBindValue(xtext);
                                 sq.addBindValue(xnotes);
@@ -586,7 +586,7 @@ void ManageDataDialog::importSongbook(QString path)
                             sq.bindValue(":wo",q.record().value("words"));
                             sq.bindValue(":mu",q.record().value("music"));
                             QString st = q.record().value("song_text").toString();
-                            if(st.contains(QRegularExpression("@$|@%")))
+                            if(st.contains(QRegularExpression(QStringLiteral("@\\$|@%"))))
                                 st = cleanSongLines(st);
                             sq.bindValue(":st",st);
                             sq.bindValue(":no",q.record().value("notes"));
@@ -650,7 +650,9 @@ void ManageDataDialog::importSongbook(QString path)
                     }
                 }
             }
-            QSqlDatabase::removeDatabase("sps");
+            // QUERY LIFETIME: destroy all QSqlQuery objects that used this connection
+            // before removeDatabase(), otherwise Qt warns and can crash.
+            QSqlDatabase::removeDatabase("sps");  // queries on this connection must already be destroyed
         }
         else// too old file format.
         {
@@ -775,7 +777,7 @@ void ManageDataDialog::exportSongbook(QString path)
             db.commit();
         }
     }
-    QSqlDatabase::removeDatabase("sps");
+    QSqlDatabase::removeDatabase("sps");  // queries on this connection must already be destroyed
 
     setArrowCursor();
 
@@ -1476,7 +1478,7 @@ void ManageDataDialog::importTheme(QString path)
             progress.close();
         }
     }
-    QSqlDatabase::removeDatabase("spt");
+    QSqlDatabase::removeDatabase("spt");  // queries on this connection must already be destroyed
 
     loadThemes();
     importModules();
@@ -1654,7 +1656,7 @@ void ManageDataDialog::exportTheme(QString path, bool all)
             db.commit();
         }
     }
-    QSqlDatabase::removeDatabase("spt");
+    QSqlDatabase::removeDatabase("spt");  // queries on this connection must already be destroyed
     setArrowCursor();
 }
 
@@ -1864,21 +1866,21 @@ void ManageDataDialog::on_pushButtonDownBible_clicked()
 {
     downType = "bible";
     importType = "down";
-    downloadModList(QUrl("http://softprojector.org/bibles/bible.xml"));
+    downloadModList(QUrl("https://softprojector.org/bibles/bible.xml"));
 }
 
 void ManageDataDialog::on_pushButtonDownSong_clicked()
 {
     downType = "song";
     importType = "down";
-    downloadModList(QUrl("http://softprojector.org/songbooks/songbooks.xml"));
+    downloadModList(QUrl("https://softprojector.org/songbooks/songbooks.xml"));
 }
 
 void ManageDataDialog::on_pushButtonDownTheme_clicked()
 {
     downType = "theme";
     importType = "down";
-    downloadModList(QUrl("http://softprojector.org/themes/themes.xml"));
+    downloadModList(QUrl("https://softprojector.org/themes/themes.xml"));
 }
 
 void ManageDataDialog::downloadModList(QUrl url)
@@ -1893,14 +1895,13 @@ void ManageDataDialog::downloadModList(QUrl url)
         mb.setIcon(QMessageBox::Critical);
         mb.setText(tr("Failed to open mod list"));
         mb.exec();
-        currentDownload->deleteLater();
-        return;
+        return;   // no request was started, so there is no reply to delete
     }
 
     QNetworkRequest request(url);
     currentDownload = downManager.get(request);
-    connect(currentDownload,SIGNAL(finished()),this,SLOT(downloadModListCompleted()));
-    connect(currentDownload,SIGNAL(readyRead()),this,SLOT(saveModFile()));
+    connect(currentDownload, &QNetworkReply::finished, this, &ManageDataDialog::downloadModListCompleted);
+    connect(currentDownload, &QNetworkReply::readyRead, this, &ManageDataDialog::saveModFile);
 }
 
 void ManageDataDialog::downloadNextMod()
@@ -1928,9 +1929,9 @@ void ManageDataDialog::downloadNextMod()
 
     QNetworkRequest request(mod.link);
     currentDownload = downManager.get(request);
-    connect(currentDownload,SIGNAL(downloadProgress(qint64,qint64)),this,SLOT(dowloadProgress(qint64,qint64)));
-    connect(currentDownload,SIGNAL(finished()),this,SLOT(downloadCompleted()));
-    connect(currentDownload,SIGNAL(readyRead()),this,SLOT(saveModFile()));
+    connect(currentDownload, &QNetworkReply::downloadProgress, this, &ManageDataDialog::dowloadProgress);
+    connect(currentDownload, &QNetworkReply::finished, this, &ManageDataDialog::downloadCompleted);
+    connect(currentDownload, &QNetworkReply::readyRead, this, &ManageDataDialog::saveModFile);
     downTime.start();
 }
 
@@ -1978,17 +1979,20 @@ QString ManageDataDialog::getSaveFileName(QUrl url)
         // File already exist, overwrite it
         if(!QFile::remove(path))
         {
-            QRegularExpression rx("(.sps|.spb|.spt|.xml)");
-            // rx.indexIn(basename);
-            basename = basename.remove(rx);
+            // Capture the extension BEFORE stripping it: the Qt 6 port matched the
+            // already-stripped name, so renamed downloads lost their extension.
+            static const QRegularExpression rx(QStringLiteral("(\\.(?:sps|spb|spt|xml))$"),
+                                               QRegularExpression::CaseInsensitiveOption);
+            const QString ext = rx.match(basename).captured(1);
+            basename.remove(rx);
 
             int i(1);
             while(QFile::exists(QString("%1%2%3_%4%5").arg(dir.absolutePath()).arg(dir.separator())
-                                     .arg(basename).arg(i).arg(rx.match(basename).captured(1))))
+                                     .arg(basename).arg(i).arg(ext)))
                 ++i;
 
             path = QString("%1%2%3_%4%5").arg(dir.absolutePath()).arg(dir.separator())
-                    .arg(basename).arg(i).arg(rx.match(basename).captured(1));
+                    .arg(basename).arg(i).arg(ext);
         }
     }
 
@@ -2072,7 +2076,8 @@ void ManageDataDialog::dowloadProgress(qint64 recBytes, qint64 totBytes)
     progressDia->setCurrentValue(recBytes);
 
     // calculate the download speed
-    double speed = recBytes * 1000.0 / downTime.elapsed();
+    const qint64 elapsedMs = qMax<qint64>(1, downTime.elapsed());   // avoid division by zero
+    double speed = recBytes * 1000.0 / elapsedMs;
     QString unit;
     if (speed < 1024)
         unit = "bytes/sec";
@@ -2104,30 +2109,30 @@ QStringList ManageDataDialog::getModList(QString filepath)
         while(!xml.atEnd())
         {
             xml.readNext();
-            if(xml.StartElement && xml.name() == "Modules"_L1)
+            if(xml.isStartElement() && xml.name() == "Modules"_L1)
             {
                 xml.readNext();
-                while(xml.tokenString() != "EndElement" && xml.name() != "Modules"_L1)
+                while(!xml.atEnd() && xml.tokenString() != "EndElement" && xml.name() != "Modules"_L1)
                 {
                     xml.readNext();
-                    if(xml.StartElement && xml.name() == "Module"_L1)
+                    if(xml.isStartElement() && xml.name() == "Module"_L1)
                     {
                         xml.readNext();
-                        while(xml.tokenString() != "EndElement")
+                        while(!xml.atEnd() && xml.tokenString() != "EndElement")
                         {
                             //                            qDebug()<<"loop2";
                             xml.readNext();
-                            if(xml.StartElement && xml.name() == "name"_L1)
+                            if(xml.isStartElement() && xml.name() == "name"_L1)
                             {
                                 name = xml.readElementText();
                                 xml.readNext();
                             }
-                            else if(xml.StartElement && xml.name() == "link"_L1)
+                            else if(xml.isStartElement() && xml.name() == "link"_L1)
                             {
                                 link = xml.readElementText();
                                 xml.readNext();
                             }
-                            else if(xml.StartElement && xml.name() == "size"_L1)
+                            else if(xml.isStartElement() && xml.name() == "size"_L1)
                             {
                                 size = xml.readElementText().toInt();
                                 xml.readNext();

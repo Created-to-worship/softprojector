@@ -24,7 +24,7 @@ Rectangle {
     id: dispArea
     visible: true
     color: "#000000"
-    anchors.fill: parent
+    // Sized by QQuickView::SizeRootObjectToView (set in projectordisplayscreen.cpp)
 
     property int mx: 0
     property int my: 0
@@ -47,10 +47,17 @@ Rectangle {
     signal playbackStateChanged(int state)
     signal playbackStopped()
 
+    // Qt 6: MediaPlayer no longer renders or plays sound by itself. It must be
+    // attached to a VideoOutput (videoOutput) and an AudioOutput (audioOutput);
+    // volume/mute live on the AudioOutput. Without these two lines the
+    // projector showed no video and played no sound.
     MediaPlayer
     {
         id: player
         objectName: "player"
+        videoOutput: vidOut
+        audioOutput: AudioOutput { id: audioOut; objectName: "audioOut" }
+        loops: 1
         onSourceChanged: console.debug(player.source)
         onPositionChanged:
         {
@@ -63,6 +70,17 @@ Rectangle {
         onPlaybackStateChanged:
         {
             dispArea.playbackStateChanged(player.playbackState)
+        }
+        // Only report "stopped" when the media actually finished. Emitting it
+        // on every StoppedState would also fire when the source is swapped or
+        // a song replaces the video, which would blank the projector.
+        onMediaStatusChanged:
+        {
+            if (player.mediaStatus === MediaPlayer.EndOfMedia)
+                dispArea.playbackStopped()
+        }
+        onErrorOccurred: function(error, errorString) {
+            console.warn("MediaPlayer error", error, errorString)
         }
     }
 
@@ -414,32 +432,32 @@ Rectangle {
         }
         else if(tranType === 3)
         {
-            mTox = mx + parent.width
+            mTox = mx + dispArea.width
             textImage1.y = my
             textImage1.x = mx
             textImage2.y = my
-            textImage2.x = mx - parent.width
+            textImage2.x = mx - dispArea.width
             textImage1.opacity = 1.0
             textImage2.opacity = 1.0
             moveTextX1to2.start()
         }
         else if(tranType === 4)
         {
-            mTox = mx - parent.width
+            mTox = mx - dispArea.width
             textImage1.y = my
             textImage1.x = mx
             textImage2.y = my
-            textImage2.x = mx + parent.width
+            textImage2.x = mx + dispArea.width
             textImage1.opacity = 1.0
             textImage2.opacity = 1.0
             moveTextX1to2.start()
         }
         else if(tranType === 5)
         {
-            mToy = my - parent.height
+            mToy = my - dispArea.height
             textImage1.y = my
             textImage1.x = mx
-            textImage2.y = my + parent.height
+            textImage2.y = my + dispArea.height
             textImage2.x = mx
             textImage1.opacity = 1.0
             textImage2.opacity = 1.0
@@ -447,33 +465,23 @@ Rectangle {
         }
         else if(tranType === 6)
         {
-            mToy = my + parent.height
+            mToy = my + dispArea.height
             textImage1.y = my
             textImage1.x = mx
-            textImage2.y = my - parent.height
+            textImage2.y = my - dispArea.height
             textImage2.x = mx
             textImage1.opacity = 1.0
             textImage2.opacity = 1.0
             moveTextY1to2.start()
         }
-        else if(tranType === "rotate")
-        {
-            rotText1.axis.x = 0
-            rotText1.axis.y = 1
-            rotText2.axis.x = 0
-            rotText2.axis.y = 1
-            textImage1.opacity = 1.0
-            textImage2.opacity = 1.0
-            rotate1to2.start()
-        }
         else
         {
             textImage1.opacity = 0.0
             textImage2.opacity = 1.0
-            textImage1.x = parent.x
-            textImage1.y = parent.y
-            textImage2.x = parent.x
-            textImage2.y = parent.y
+            textImage1.x = 0
+            textImage1.y = 0
+            textImage2.x = 0
+            textImage2.y = 0
         }
     }
 
@@ -491,9 +499,9 @@ Rectangle {
         }
         else if(tranType === 3)
         {
-            mTox = mx + parent.width
+            mTox = mx + dispArea.width
             textImage1.y = my
-            textImage1.x = mx - parent.width
+            textImage1.x = mx - dispArea.width
             textImage2.y = my
             textImage2.x = mx
             textImage1.opacity = 1.0
@@ -502,9 +510,9 @@ Rectangle {
         }
         else if(tranType === 4)
         {
-            mTox = mx - parent.width
+            mTox = mx - dispArea.width
             textImage1.y = my
-            textImage1.x = mx + parent.width
+            textImage1.x = mx + dispArea.width
             textImage2.y = my
             textImage2.x = mx
             textImage1.opacity = 1.0
@@ -513,8 +521,8 @@ Rectangle {
         }
         else if(tranType === 5)
         {
-            mToy = my - parent.height
-            textImage1.y = my + parent.height
+            mToy = my - dispArea.height
+            textImage1.y = my + dispArea.height
             textImage1.x = mx
             textImage2.y = my
             textImage2.x = mx
@@ -524,8 +532,8 @@ Rectangle {
         }
         else if(tranType === 6)
         {
-            mToy = my + parent.height
-            textImage1.y = my - parent.height
+            mToy = my + dispArea.height
+            textImage1.y = my - dispArea.height
             textImage1.x = mx
             textImage2.y = my
             textImage2.x = mx
@@ -533,24 +541,14 @@ Rectangle {
             textImage2.opacity = 1.0
             moveTextY2to1.start()
         }
-        else if(tranType === "rotate")
-        {
-            rotText1.axis.x = 0
-            rotText1.axis.y = 1
-            rotText2.axis.x = 0
-            rotText2.axis.y = 1
-            textImage1.opacity = 1.0
-            textImage2.opacity = 1.0
-            rotate2to1.start()
-        }
         else
         {
             textImage1.opacity = 1.0
             textImage2.opacity = 0.0
-            textImage1.x = parent.x
-            textImage1.y = parent.y
-            textImage2.x = parent.x
-            textImage2.y = parent.y
+            textImage1.x = 0
+            textImage1.y = 0
+            textImage2.x = 0
+            textImage2.y = 0
         }
     }
 
@@ -563,32 +561,32 @@ Rectangle {
         }
         else if(tranType === 3)
         {
-            mTox = mx + parent.width
+            mTox = mx + dispArea.width
             backImage1.y = my
             backImage1.x = mx
             backImage2.y = my
-            backImage2.x = mx - parent.width
+            backImage2.x = mx - dispArea.width
             backImage1.opacity = 1.0
             backImage2.opacity = 1.0
             moveBackX1to2.start()
         }
         else if(tranType === 4)
         {
-            mTox = mx - parent.width
+            mTox = mx - dispArea.width
             backImage1.y = my
             backImage1.x = mx
             backImage2.y = my
-            backImage2.x = mx + parent.width
+            backImage2.x = mx + dispArea.width
             backImage1.opacity = 1.0
             backImage2.opacity = 1.0
             moveBackX1to2.start()
         }
         else if(tranType === 5)
         {
-            mToy = my - parent.height
+            mToy = my - dispArea.height
             backImage1.y = my
             backImage1.x = mx
-            backImage2.y = my + parent.height
+            backImage2.y = my + dispArea.height
             backImage2.x = mx
             backImage1.opacity = 1.0
             backImage2.opacity = 1.0
@@ -596,10 +594,10 @@ Rectangle {
         }
         else if(tranType === 6)
         {
-            mToy = my + parent.height
+            mToy = my + dispArea.height
             backImage1.y = my
             backImage1.x = mx
-            backImage2.y = my - parent.height
+            backImage2.y = my - dispArea.height
             backImage2.x = mx
             backImage1.opacity = 1.0
             backImage2.opacity = 1.0
@@ -609,10 +607,10 @@ Rectangle {
         {
             backImage1.opacity = 0.0
             backImage2.opacity = 1.0
-            backImage1.x = parent.x
-            backImage1.y = parent.y
-            backImage2.x = parent.x
-            backImage2.y = parent.y
+            backImage1.x = 0
+            backImage1.y = 0
+            backImage2.x = 0
+            backImage2.y = 0
         }
     }
 
@@ -625,9 +623,9 @@ Rectangle {
         }
         else if(tranType === 3)
         {
-            mTox = mx + parent.width
+            mTox = mx + dispArea.width
             backImage1.y = my
-            backImage1.x = mx - parent.width
+            backImage1.x = mx - dispArea.width
             backImage2.y = my
             backImage2.x = mx
             backImage1.opacity = 1.0
@@ -636,9 +634,9 @@ Rectangle {
         }
         else if(tranType === 4)
         {
-            mTox = mx - parent.width
+            mTox = mx - dispArea.width
             backImage1.y = my
-            backImage1.x = mx + parent.width
+            backImage1.x = mx + dispArea.width
             backImage2.y = my
             backImage2.x = mx
             backImage1.opacity = 1.0
@@ -647,8 +645,8 @@ Rectangle {
         }
         else if(tranType === 5)
         {
-            mToy = my - parent.height
-            backImage1.y = my + parent.height
+            mToy = my - dispArea.height
+            backImage1.y = my + dispArea.height
             backImage1.x = mx
             backImage2.y = my
             backImage2.x = mx
@@ -658,8 +656,8 @@ Rectangle {
         }
         else if(tranType === 6)
         {
-            mToy = my + parent.height
-            backImage1.y = my - parent.height
+            mToy = my + dispArea.height
+            backImage1.y = my - dispArea.height
             backImage1.x = mx
             backImage2.y = my
             backImage2.x = mx
@@ -671,10 +669,10 @@ Rectangle {
         {
             backImage1.opacity = 1.0
             backImage2.opacity = 0.0
-            backImage1.x = parent.x
-            backImage1.y = parent.y
-            backImage2.x = parent.x
-            backImage2.y = parent.y
+            backImage1.x = 0
+            backImage1.y = 0
+            backImage2.x = 0
+            backImage2.y = 0
         }
     }
 
@@ -704,17 +702,22 @@ Rectangle {
 
     function setVideoVolume(level)
     {
-        player.volume = level
+        audioOut.volume = level          // 0.0 - 1.0
     }
 
     function setVideoMuted(toMute)
     {
-        player.muted = toMute
+        audioOut.muted = toMute
+    }
+
+    function setVideoLoops(count)
+    {
+        player.loops = count             // MediaPlayer.Infinite (-1) or a play count
     }
 
     function setVideoPosition(position)
     {
-        player.seek(position)
+        player.setPosition(position)     // Qt 6: seek() was removed
     }
 
     function pauseVideo()

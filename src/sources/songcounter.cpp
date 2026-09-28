@@ -31,6 +31,7 @@ SongCounter::SongCounter(QWidget *parent, QString loc) :
 
     song_count_list = getSongCounts();
     songCounterModel = new SongCounterModel;
+    songCounterModel->setParent(this);   // was never deleted (leaked per dialog)
     loadCounts();
 
     // Modify the column widths:
@@ -82,10 +83,14 @@ void SongCounter::on_resetOneButton_clicked()
 
 void SongCounter::loadCounts()
 {
-    songCounterProxyModel = new QSortFilterProxyModel;
-    songCounterProxyModel->setSourceModel(songCounterModel);
+    // The proxy used to be re-created (and leaked) on every call
+    if(!songCounterProxyModel)
+    {
+        songCounterProxyModel = new QSortFilterProxyModel(this);
+        songCounterProxyModel->setSourceModel(songCounterModel);
+        ui->countTable->setModel(songCounterProxyModel);
+    }
     songCounterModel->setCounter(song_count_list);
-    ui->countTable->setModel(songCounterProxyModel);
 }
 
 void SongCounter::addSongCount(Song song)

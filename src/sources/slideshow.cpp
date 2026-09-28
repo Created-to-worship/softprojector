@@ -18,6 +18,7 @@
 ***************************************************************************/
 
 #include "../headers/slideshow.hpp"
+#include <algorithm>
 
 SlideShowItem::SlideShowItem()
 {
@@ -53,7 +54,8 @@ void SlideShow::loadSlideShow(int id)
     while(sq.next())
         ++max;
 
-    sq.first();
+    if(!sq.first())
+        return;   // empty slide show (the do/while below used to add one blank slide)
     progress.setLabelText("Loading Slides...");
     progress.setMaximum(max+1);
     int ct(0);
@@ -66,7 +68,7 @@ void SlideShow::loadSlideShow(int id)
         si.order = sq.value(1).toInt();
         si.name = sq.value(2).toString();
         si.path = sq.value(3).toString();
-        si.image.loadFromData(sq.value(4).toByteArray());
+        si.imageData = sq.value(4).toByteArray();   // decoded on demand (decodeImage)
         si.imageSmall.loadFromData(sq.value(5).toByteArray());
         si.imagePreview.loadFromData(sq.value(6).toByteArray());
 
@@ -75,18 +77,12 @@ void SlideShow::loadSlideShow(int id)
         progress.setValue(ct);
     }while(sq.next());
 
-    // Sort to proper oder number
-    for(int i(0);i<ss.count();++i)
-    {
-        foreach(const SlideShowItem &ssi, ss)
-        {
-            if(ssi.order == i)
-            {
-                slides.append(ssi);
-                break;
-            }
-        }
-    }
+    // Sort to proper order number. (The old O(n^2) loop looked for orders
+    // 0..n-1 only, so a slide after a gap in p_order was silently dropped.)
+    std::stable_sort(ss.begin(), ss.end(), [](const SlideShowItem &a, const SlideShowItem &b) {
+        return a.order < b.order;
+    });
+    slides.append(ss);
 
     ++ct;
     progress.setValue(ct);
@@ -124,7 +120,7 @@ void SlideShow::saveSideShow(QString savelbl, QWidget *ptW, QList<int> delList)
             sq.addBindValue(ct);
             sq.addBindValue(si.name);
             sq.addBindValue(si.path);
-            sq.addBindValue(pixToByte(si.image));
+            sq.addBindValue(si.encodedImage());
             sq.addBindValue(pixToByte(si.imageSmall));
             sq.addBindValue(pixToByte(si.imagePreview));
             sq.exec();
@@ -170,7 +166,7 @@ void SlideShow::saveSideShow(QString savelbl, QWidget *ptW, QList<int> delList)
                 sq.addBindValue(c);
                 sq.addBindValue(si.name);
                 sq.addBindValue(si.path);
-                sq.addBindValue(pixToByte(si.image));
+                sq.addBindValue(si.encodedImage());
                 sq.addBindValue(pixToByte(si.imageSmall));
                 sq.addBindValue(pixToByte(si.imagePreview));
                 sq.exec();
@@ -195,4 +191,21 @@ void SlideShow::saveSideShow(QString savelbl, QWidget *ptW, QList<int> delList)
     QSqlDatabase::database().commit();
     ++ct;
     prg.setValue(ct);
+}
+
+void SlideShowItem::decodeImage()
+{
+    if(image.isNull() && !imageData.isEmpty())
+        image.loadFromData(imageData);
+}
+
+void SlideShowItem::releaseImage()
+{
+    if(!imageData.isEmpty())
+        image = QPixmap();
+}
+
+QByteArray SlideShowItem::encodedImage() const
+{
+    return imageData.isEmpty() ? pixToByte(image) : imageData;
 }

@@ -17,9 +17,18 @@
 //
 ***************************************************************************/
 
-#include "../3rdparty/headers/qmediaplaylist.h"
 #include "../headers/projectordisplayscreen.hpp"
 #include "ui_projectordisplayscreen.h"
+#include <QDebug>
+
+namespace {
+// Qt 6 QML MediaPlayer.loops is a play COUNT (QMediaPlayer::Infinite == -1,
+// QMediaPlayer::Once == 1). The old code passed QMediaPlaylist::Loop (== 3,
+// "play three times") and QMediaPlaylist::CurrentItemOnce (== 0, which Qt 6
+// ignores, so the previous loop count stuck).
+constexpr int kLoopForever = -1;
+constexpr int kPlayOnce = 1;
+}
 
 
 ProjectorDisplayScreen::ProjectorDisplayScreen(QWidget *parent) :
@@ -28,11 +37,20 @@ ProjectorDisplayScreen::ProjectorDisplayScreen(QWidget *parent) :
 {
     ui->setupUi(this);
     dispView = new QQuickView;
+    dispView->setResizeMode(QQuickView::SizeRootObjectToView);
     imProvider = new SpImageProvider;
     dispView->engine()->addImageProvider(QLatin1String("improvider"),imProvider);
     QWidget *w = QWidget::createWindowContainer(dispView,this);
     dispView->setSource(QUrl("qrc:/qml/qml/DisplayArea.qml"));
     ui->verticalLayout->addWidget(w);
+
+    if (dispView->status() == QQuickView::Error || !dispView->rootObject())
+    {
+        // Typically a missing QtQuick/QtMultimedia QML plugin in a deployment.
+        const auto errs = dispView->errors();
+        for (const QQmlError &e : errs)
+            qCritical() << "DisplayArea.qml:" << e.toString();
+    }
 
     // Create Display object for retriaving signals back from the display screen
     QObject *dispObj = dispView->rootObject();
@@ -40,15 +58,21 @@ ProjectorDisplayScreen::ProjectorDisplayScreen(QWidget *parent) :
     connect(dispObj,SIGNAL(nextClicked()),this,SLOT(nextSlideClicked()));
     connect(dispObj,SIGNAL(prevClicked()),this,SLOT(prevSlideClicked()));
 
-    // Connect Media Player objects
-    connect(dispObj,SIGNAL(positionChanged(int)),this,SLOT(videoPositionChanged(int)));
-    connect(dispObj,SIGNAL(durationChanged(int)),this,SLOT(videoDurationChanged(int)));
-    connect(dispObj,SIGNAL(playbackStateChanged(int)),this,SLOT(videoPlaybackStateChanged(int)));
-    connect(dispObj,SIGNAL(playbackStopped()),this,SLOT(playbackStopped()));
+    // Connect Media Player objects (QML signals emit int; we re-emit typed Qt6 enums)
+    connect(dispObj, SIGNAL(positionChanged(int)), this, SLOT(onQmlPositionChanged(int)));
+    connect(dispObj, SIGNAL(durationChanged(int)), this, SLOT(onQmlDurationChanged(int)));
+    connect(dispObj, SIGNAL(playbackStateChanged(int)), this, SLOT(onQmlPlaybackStateChanged(int)));
+    connect(dispObj, SIGNAL(playbackStopped()), this, SLOT(playbackStopped()));
 
     backImSwitch1 = backImSwitch2 = textImSwitch1 = textImSwitch2 = false;
     back1to2 = text1to2 = isNewBack = true;
     m_color.setRgb(0,0,0,0);// = QColor(QColor::black());
+}
+
+QObject *ProjectorDisplayScreen::qmlChild(const char *objectName) const
+{
+    QObject *root = dispView->rootObject();
+    return root ? root->findChild<QObject*>(QLatin1String(objectName)) : nullptr;
 }
 
 ProjectorDisplayScreen::~ProjectorDisplayScreen()
@@ -93,8 +117,8 @@ void ProjectorDisplayScreen::setBackPixmap(QPixmap p, int fillMode)
     imProvider->setPixMap(p);
     back1to2 = (!back1to2);
 
-    QObject *item1 = dispView->rootObject()->findChild<QObject*>("backImage1");
-    QObject *item2 = dispView->rootObject()->findChild<QObject*>("backImage2");
+    QObject *item1 = qmlChild("backImage1");
+    QObject *item2 = qmlChild("backImage2");
     if(item1 && item2)
     {
         if(back1to2)
@@ -148,8 +172,8 @@ void ProjectorDisplayScreen::setTextPixmap(QPixmap p)
     imProvider->setPixMap(p);
     text1to2 = (!text1to2);
 
-    QObject *item1 = dispView->rootObject()->findChild<QObject*>("textImage1");
-    QObject *item2 = dispView->rootObject()->findChild<QObject*>("textImage2");
+    QObject *item1 = qmlChild("textImage1");
+    QObject *item2 = qmlChild("textImage2");
     if(item1 && item2)
     {
         if(text1to2)
@@ -173,12 +197,14 @@ void ProjectorDisplayScreen::setTextPixmap(QPixmap p)
 
 void ProjectorDisplayScreen::setBackVideo(QString path)
 {
-    QObject *item = dispView->rootObject()->findChild<QObject*>("player");
-    QObject *item2 = dispView->rootObject()->findChild<QObject*>("vidOut");
+    QObject *item = qmlChild("player");
+    QObject *item2 = qmlChild("vidOut");
+    if(!item || !item2)
+        return;
 
     setVideoSource(item,path);
-    item->setProperty("volume",0.0);
-    item->setProperty("loops",QMediaPlaylist::Loop);
+    setVideoMuted(true);                      // background video is silent
+    item->setProperty("loops",kLoopForever);
     item2->setProperty("fillMode",Qt::IgnoreAspectRatio);
 }
 
@@ -249,19 +275,19 @@ void ProjectorDisplayScreen::prevSlideClicked()
     emit prevSlide();
 }
 
-void ProjectorDisplayScreen::videoPositionChanged(int position)
+void ProjectorDisplayScreen::onQmlPositionChanged(int position)
 {
-    emit videoPositionChanged((qint64)position);
+    emit videoPositionChanged(static_cast<qint64>(position));
 }
 
-void ProjectorDisplayScreen::videoDurationChanged(int duration)
+void ProjectorDisplayScreen::onQmlDurationChanged(int duration)
 {
-    emit videoDurationChanged((qint64)duration);
+    emit videoDurationChanged(static_cast<qint64>(duration));
 }
 
-void ProjectorDisplayScreen::videoPlaybackStateChanged(int state)
+void ProjectorDisplayScreen::onQmlPlaybackStateChanged(int state)
 {
-    emit videoPlaybackStateChanged((QMediaPlayer::PlaybackState)state);
+    emit videoPlaybackStateChanged(static_cast<QMediaPlayer::PlaybackState>(state));
 }
 
 void ProjectorDisplayScreen::keyReleaseEvent(QKeyEvent *event)
@@ -440,14 +466,17 @@ void ProjectorDisplayScreen::renderVideo(VideoInfo videoDetails)
     backType = B_VIDEO;
     setTextPixmap(imGen.generateEmptyImage());
     setBackPixmap(imGen.generateColorImage(m_color),0);
-    QObject *root = dispView->rootObject();
-    QObject *item = root->findChild<QObject*>("player");
-    QObject *item2 = root->findChild<QObject*>("vidOut");
+    QObject *item = qmlChild("player");
+    QObject *item2 = qmlChild("vidOut");
+    if(!item || !item2)
+        return;
 
     setVideoSource(item,videoDetails.filePath);
 
-    item->setProperty("volume",1.0);
-    item->setProperty("loops",QMediaPlaylist::CurrentItemOnce);
+    // Volume/mute are NOT touched here any more; callers set them afterwards.
+    // (This used to reset volume to full, un-muting the secondary screens
+    // right after SoftProjector::showVideo() muted them -> echo on multi-screen.)
+    item->setProperty("loops",kPlayOnce);
     item2->setProperty("fillMode",Qt::KeepAspectRatio);
 
     updateScreen();
@@ -478,21 +507,22 @@ void ProjectorDisplayScreen::playbackStopped()
 
 void ProjectorDisplayScreen::setVideoVolume(int level)
 {
-    float vol = 1.0*level/100;
+    const double vol = qBound(0, level, 100) / 100.0;
     QObject *root = dispView->rootObject();
-    QMetaObject::invokeMethod(root,"setVideoVolume",Q_ARG(QVariant,vol));
+    QMetaObject::invokeMethod(root,"setVideoVolume",Q_ARG(QVariant,QVariant(vol)));
 }
 
 void ProjectorDisplayScreen::setVideoMuted(bool muted)
 {
     QObject *root = dispView->rootObject();
-    QMetaObject::invokeMethod(root,"setVideoVolume",Q_ARG(QVariant,(!muted)));
+    // Previously invoked setVideoVolume(!muted): unmuting jumped volume to 100%.
+    QMetaObject::invokeMethod(root,"setVideoMuted",Q_ARG(QVariant,QVariant(muted)));
 }
 
 void ProjectorDisplayScreen::setVideoPosition(qint64 position)
 {
     QObject *root = dispView->rootObject();
-    QMetaObject::invokeMethod(root,"setVideoPosition",Q_ARG(QVariant,position));
+    QMetaObject::invokeMethod(root,"setVideoPosition",Q_ARG(QVariant,QVariant(position)));
 }
 
 void ProjectorDisplayScreen::positionControls(DisplayControlsSettings &dSettings)

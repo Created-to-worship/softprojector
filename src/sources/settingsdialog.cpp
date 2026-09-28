@@ -49,15 +49,15 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     ui->buttonBox->addButton(btnApply,QDialogButtonBox::ApplyRole);
 
     // Connect display screen slot
-    connect(generalSettingswidget,SIGNAL(setDisp2Use(bool)),this,SLOT(setUseDispScreen2(bool)));
-    connect(generalSettingswidget,SIGNAL(setDisp3Use(bool)),this,SLOT(setUseDispScreen3(bool)));
-    connect(generalSettingswidget,SIGNAL(setDisp4Use(bool)),this,SLOT(setUseDispScreen4(bool)));
-    connect(generalSettingswidget,SIGNAL(themeChanged(int)),this,SLOT(changeTheme(int)));
+    connect(generalSettingswidget, &GeneralSettingWidget::setDisp2Use, this, &SettingsDialog::setUseDispScreen2);
+    connect(generalSettingswidget, &GeneralSettingWidget::setDisp3Use, this, &SettingsDialog::setUseDispScreen3);
+    connect(generalSettingswidget, &GeneralSettingWidget::setDisp4Use, this, &SettingsDialog::setUseDispScreen4);
+    connect(generalSettingswidget, &GeneralSettingWidget::themeChanged, this, &SettingsDialog::changeTheme);
 
     // Connect Apply to all
-    connect(bibleSettingswidget,SIGNAL(applyBackToAll(int,QString,QPixmap)),this,SLOT(applyToAllActive(int,QString,QPixmap)));
-    connect(songSettingswidget,SIGNAL(applyBackToAll(int,QString,QPixmap)),this,SLOT(applyToAllActive(int,QString,QPixmap)));
-    connect(announcementSettingswidget,SIGNAL(applyBackToAll(int,QString,QPixmap)),this,SLOT(applyToAllActive(int,QString,QPixmap)));
+    connect(bibleSettingswidget, &BibleSettingWidget::applyBackToAll, this, &SettingsDialog::applyToAllActive);
+    connect(songSettingswidget, &SongSettingWidget::applyBackToAll, this, &SettingsDialog::applyToAllActive);
+    connect(announcementSettingswidget, &AnnouncementSettingWidget::applyBackToAll, this, &SettingsDialog::applyToAllActive);
 
 }
 

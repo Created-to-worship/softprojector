@@ -381,6 +381,7 @@ void Song::removeLastChorus(QStringList ct, QStringList &list)
 
 Stanza Song::getStanza(int current)
 {
+    decodeBackground();
     Stanza stanza;
     QStringList song_list = getSongTextList();
     stanza.isLast = (current == song_list.count()-1);
@@ -425,12 +426,13 @@ SongsModel::SongsModel()
 
 Song SongsModel::getSong(int row)
 {
+    song_list[row].decodeBackground();   // decode once, keep the result for next time
     return song_list.at(row);
 }
 
 Song SongsModel::getSong(QModelIndex index)
 {
-    return song_list.at(index.row());
+    return getSong(index.row());
 }
 
 void SongsModel::setSongs(QList<Song> songs)
@@ -774,12 +776,24 @@ QList<Song> SongDatabase::getSongs()
             song.endingFont.fromString(sq.value(18).toString());
         song.useBackground = sq.value(19).toBool();
         song.backgroundName = sq.value(20).toString();
-        song.background.loadFromData(sq.value(21).toByteArray());
-        song.songbook_name = sb_names.at(sb_ids.indexOf(song.songbook_id));
+        song.backgroundData = sq.value(21).toByteArray();   // decoded lazily (decodeBackground)
+        const int sbIndex = sb_ids.indexOf(song.songbook_id);
+        if(sbIndex < 0)
+            continue;   // orphaned row (songbook deleted): at(-1) used to crash at startup
+        song.songbook_name = sb_names.at(sbIndex);
 
         songs.append(song);
     }
     return songs;
+}
+
+void Song::decodeBackground()
+{
+    if(backgroundData.isEmpty())
+        return;
+    if(background.isNull())
+        background.loadFromData(backgroundData);
+    backgroundData.clear();
 }
 
 bool Song::isValid()
@@ -793,6 +807,7 @@ bool Song::isValid()
 
 void Song::getSettings(SongSettings &settings)
 {
+    decodeBackground();   // safety net for songs not obtained via SongsModel::getSong()
     settings.textAlignmentV = alignmentV;
     settings.textAlignmentH = alignmentH;
     settings.useBackground = useBackground;
@@ -831,8 +846,10 @@ void SongDatabase::deleteSong(int song_id)
 QString SongDatabase::getSongbookIdStringFromName(QString songbook_name)
 {
     QSqlQuery sq;
-    sq.exec("SELECT id FROM Songbooks WHERE name = '" + songbook_name +"'"); //ilya
-    sq.first();
+    sq.prepare("SELECT id FROM Songbooks WHERE name = ?");   // bound: names may contain '
+    sq.addBindValue(songbook_name);
+    if(!sq.exec() || !sq.first())
+        return QString();
     return sq.value(0).toString();
 }
 

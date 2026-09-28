@@ -45,6 +45,7 @@ PrintPreviewDialog::PrintPreviewDialog(QWidget *parent) :
 
 PrintPreviewDialog::~PrintPreviewDialog()
 {
+    delete printer;   // was leaked on every print preview
     delete ui;
 }
 
@@ -182,8 +183,8 @@ void PrintPreviewDialog::on_pushButtonPrint_clicked()
     printer->setOutputFormat(QPrinter::NativeFormat);
     printer->setOutputFileName("");
 
-    QPrintDialog *dlg = new QPrintDialog(printer, this);
-    if (dlg->exec() != QDialog::Accepted)
+    QPrintDialog dlg(printer, this);   // stack object (was a heap dialog per click)
+    if (dlg.exec() != QDialog::Accepted)
         return;
 
     ui->textEdit->document()->print(printer);

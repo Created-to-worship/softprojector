@@ -32,8 +32,7 @@ SongWidget::SongWidget(QWidget *parent) :
     proxy_model->setSourceModel(songs_model);
     proxy_model->setDynamicSortFilter(true);
     ui->songs_view->setModel(proxy_model);
-    connect(ui->songs_view->selectionModel(), SIGNAL(currentRowChanged(const QModelIndex&, const QModelIndex&)),
-            this, SLOT(songsViewRowChanged(const QModelIndex&, const QModelIndex&)));
+    connect(ui->songs_view->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &SongWidget::songsViewRowChanged);
 
     // Decrease the row height:
     ui->songs_view->resizeRowsToContents();
@@ -255,7 +254,7 @@ void SongWidget::on_song_num_spinbox_valueChanged(int value)
     // Look for a song with number <value>. Select it and scroll to show it.
     for (int i = 0; i < songs_model->song_list.size(); i++)
     {
-        Song s = songs_model->song_list.at(i);
+        const Song &s = songs_model->song_list.at(i);   // no per-song copy
         if( s.number == value && s.songbook_name == ui->songbook_menu->currentText() )
         {
             // Found a song with this song number
@@ -555,7 +554,7 @@ void SongWidget::on_pushButtonSearch_clicked()
     int type = ui->comboBoxSearchType->currentIndex();
 
     // Make sure that there is some text to do a search for, if none, then return
-    if(search_text.count()<1)
+    if(search_text.isEmpty())
     {
         ui->lineEditSearch->clear();
         ui->lineEditSearch->setPlaceholderText(tr("Please enter search text"));
@@ -582,18 +581,28 @@ void SongWidget::on_pushButtonSearch_clicked()
         // Search text phrase
         rx.setPattern(search_text);
 
+    // per-word patterns for "contains all words", compiled once (not once per song)
+    QList<QRegularExpression> wordPats;
+    if(type == 4)
+    {
+        const QStringList words = search_text.split('|', Qt::SkipEmptyParts);
+        for(const QString &w : words)
+            wordPats.append(QRegularExpression("\\b" + w + "\\b", QRegularExpression::CaseInsensitiveOption));
+    }
+
     // perform search
     for(int i(0);i<allSongs.count();++i)
     {
         if(type == 4)
         {
-            QStringList stl = search_text.split("|");
-            bool hasAll = false;
-            for(int j(0);j<stl.count();++j)
+            bool hasAll = !wordPats.isEmpty();
+            for(const QRegularExpression &wrx : std::as_const(wordPats))
             {
-                hasAll = allSongs.at(i).songText.contains(QRegularExpression("\\b"+stl.at(j)+"\\b",QRegularExpression::CaseInsensitiveOption));
-                if(!hasAll)
+                if(!allSongs.at(i).songText.contains(wrx))
+                {
+                    hasAll = false;
                     break;
+                }
             }
             if(hasAll)
                 search_results.append(allSongs.at(i));

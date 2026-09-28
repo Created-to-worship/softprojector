@@ -847,5 +847,6 @@ QPixmap ImageGenerator::applyEffectToImage(QPixmap src, QGraphicsEffect *effect)
     res.fill(Qt::transparent);
     QPainter ptr(&res);
     scene.render(&ptr);
+    ptr.end();   // don't return (copy) a pixmap that is still being painted on
     return res;
 }

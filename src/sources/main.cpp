@@ -18,9 +18,14 @@
 ***************************************************************************/
 
 #include <QApplication>
+#include <QGuiApplication>
 #include <QMessageBox>
 #include <QtSql>
 #include <QStyleFactory>
+#include <QStandardPaths>
+#include <QDir>
+#include <QDebug>
+#include <QFile>
 #include "../headers/softprojector.hpp"
 
 // Definitions for database versions 'dbVer' numbers
@@ -29,17 +34,70 @@
 // 990xxx - Development release. ex: 990206 - for SoftProjector 2 Development Build 6 (2db6)
 int const dbVer = 2;
 
-bool connect(QString database_file)
+// Chooses the per-user data directory and, on first run, migrates data from the
+// locations older builds used. Returns the path WITH a trailing '/'.
+static QString resolveDataDir()
+{
+    // Local (not Roaming) AppData on Windows: spData.sqlite can be hundreds of MB
+    // with Bibles, and SQLite's WAL mode (enabled below) does not work on the
+    // network shares that roaming profiles are often redirected to.
+    // On Linux/macOS AppLocalDataLocation == AppDataLocation.
+    QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    if (base.isEmpty())
+        base = QCoreApplication::applicationDirPath();
+    QDir dir(base);
+    if (!dir.exists() && !dir.mkpath(QStringLiteral(".")))
+        dir = QDir(QCoreApplication::applicationDirPath());   // very locked-down systems
+
+    // One-time migration. Releases up to 2.2 kept spData.sqlite next to the
+    // executable, and an earlier modernization pass used the *roaming* AppData
+    // folder - without this, upgrading users would start with an empty
+    // database. Files are copied, never moved, so nothing can be lost.
+    const QString dbName = QStringLiteral("spData.sqlite");
+    if (!QFile::exists(dir.filePath(dbName)))
+    {
+        const QStringList legacyDirs = {
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation),
+            QCoreApplication::applicationDirPath() };
+        for (const QString &from : legacyDirs)
+        {
+            if (from.isEmpty() || QDir(from) == dir || !QFile::exists(QDir(from).filePath(dbName)))
+                continue;
+            bool ok = true;
+            const QStringList files = { dbName, dbName + QStringLiteral("-wal"),
+                                        dbName + QStringLiteral("-shm"), QStringLiteral("DarkTheme.ini") };
+            for (const QString &f : files)
+            {
+                const QString src = QDir(from).filePath(f), dst = dir.filePath(f);
+                if (QFile::exists(src) && !QFile::exists(dst))
+                {
+                    if (QFile::copy(src, dst))   // copies can inherit a read-only flag
+                        QFile(dst).setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                                  | QFileDevice::ReadUser | QFileDevice::WriteUser);
+                    else if (f == dbName)
+                        ok = false;
+                }
+            }
+            qInfo() << "Data migration from" << from << "to" << dir.absolutePath() << (ok ? "succeeded" : "FAILED");
+            if (ok)
+                break;
+        }
+    }
+    return dir.absolutePath() + QLatin1Char('/');
+}
+
+static bool openDatabase(QString database_file)
 {
     database_file += "spData.sqlite";
     bool database_exists = ( QFile::exists(database_file) );
 
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    // Named connection for clarity; enables safe removeDatabase later if needed
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");  // default connection; used app-wide
     db.setDatabaseName(database_file);
     if (!db.open())
     {
         QMessageBox mb;
-        mb.setText("spData Error"
+        mb.setText("spData Error\n\n"
                    "Could not connect to the database spData.sqlite!\n\n"
                    "Following Errors:\n"
                    + db.lastError().databaseText() + "\n"
@@ -54,7 +112,17 @@ bool connect(QString database_file)
     }
     else
     {
-        // If no files exited, then database has been created now we need to fill it
+        // Enable Write-Ahead Logging so concurrent readers (e.g. search) do not
+        // block writers (edits) and vice versa. busy_timeout reduces SQLITE_BUSY
+        // failures under load. Safe on existing DBs; no-op if already WAL.
+        {
+            QSqlQuery pragma(db);
+            pragma.exec("PRAGMA journal_mode=WAL");
+            pragma.exec("PRAGMA busy_timeout=5000");
+            pragma.exec("PRAGMA synchronous=NORMAL");
+        }
+
+        // If no files existed, then database has been created; now fill schema
         if(!database_exists)
         {
             QSqlQuery sq;
@@ -107,10 +175,38 @@ bool connect(QString database_file)
     }
 }
 
+// Indexes for the hot queries. Without them every displayed verse was a full
+// scan of BibleVerse (31,000 rows per installed Bible) - repeated for the
+// primary/secondary/trinary Bible and for every display screen - and songbook,
+// book and slide lookups scanned their tables too. IF NOT EXISTS keeps this
+// idempotent; the one-time build on an existing database takes about a second.
+static void ensureIndexes()
+{
+    QSqlQuery q;
+    const char *statements[] = {
+        "CREATE INDEX IF NOT EXISTS idx_BibleVerse_verse ON BibleVerse(verse_id, bible_id)",
+        "CREATE INDEX IF NOT EXISTS idx_BibleVerse_bible ON BibleVerse(bible_id)",
+        "CREATE INDEX IF NOT EXISTS idx_BibleBooks_bible ON BibleBooks(bible_id, id)",
+        "CREATE INDEX IF NOT EXISTS idx_Songs_songbook   ON Songs(songbook_id, number)",
+        "CREATE INDEX IF NOT EXISTS idx_Slides_slideshow ON Slides(ss_id, p_order)",
+    };
+    for (const char *sql : statements)
+        if (!q.exec(QString::fromLatin1(sql)))
+            qWarning() << "Index creation failed:" << q.lastError().text();
+}
+
 int main(int argc, char *argv[])
 {
+    // High-DPI: let Qt pass through fractional scale factors (125%/150%/etc.)
+    // so multi-monitor projection geometry stays accurate on Windows 11 / modern macOS.
+    // Must be set before QApplication is constructed.
+    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
     QApplication a(argc, argv);
     a.setApplicationName("SoftProjector");
+    a.setOrganizationName("SoftProjector");
+    a.setOrganizationDomain("softprojector.org");
 
     QPixmap pixmap(":icons/icons/splash.png");
     QSplashScreen splash(pixmap);
@@ -120,92 +216,22 @@ int main(int argc, char *argv[])
 
 //    QTextCodec::setCodecForTr(QTextCodec::codecForName("utf8"));
 
-    // Look for the database in all the same places that the QSql module will look,
-    // and display a friendly error if it was not found:
-    QString database_dir;
-#ifdef Q_WS_WIN
-    // If running on Windows, check if SoftProjector is Installed.
-    // If it is installed, then provide proper directory for database.
-    QDir d;
-    QString cur_app_path = a.applicationDirPath();
-    //    if(cur_app_path.contains(QString("C:%1Program Files").arg(d.separator())))
-    if(cur_app_path.contains("C:/Program Files") || cur_app_path.contains("C:\\Program Files"))
-    {
-        // Check if it is on Windows Vista and Later or before Vista
-        bool is_vista = (QSysInfo::WindowsVersion >= QSysInfo::WV_VISTA);
-        if(is_vista)
-        {
-            d.cd(d.rootPath());
-            if(d.cd("ProgramData"))
-            {
-                // Check if 'SoftProjector directory exists, if not, create one
-                if(d.cd("SoftProjector"))
-                    database_dir = d.absolutePath() + d.separator();
-                else
-                {
-                    d.mkdir("SoftProjector");
-                    if(d.cd("SoftProjector"))
-                        database_dir = d.absolutePath() + d.separator();
-                    else
-                        database_dir = cur_app_path + d.separator();
-                }
-            }
-            else if(d.cd("Public"))
-            {
-                // Check if 'SoftProjector directory exists, if not, create one
-                if(d.cd("SoftProjector"))
-                    database_dir = d.absolutePath() + d.separator();
-                else
-                {
-                    d.mkdir("SoftProjector");
-                    if(d.cd("SoftProjector"))
-                        database_dir = d.absolutePath() + d.separator();
-                    else
-                        database_dir = cur_app_path + d.separator();
-                }
-            }
-            else
-                database_dir = cur_app_path + d.separator();
-        }
-        else
-        {
-            d.cd(d.homePath());
-            d.cdUp();
-            if(d.cd("All Users"))
-            {
-                if(d.cd("Application Data"))
-                {
-                    // Check if 'SoftProjector directory exists, if not, create one
-                    if(d.cd("SoftProjector"))
-                        database_dir = d.absolutePath() + d.separator();
-                    else
-                    {
-                        d.mkdir("SoftProjector");
-                        if(d.cd("SoftProjector"))
-                            database_dir = d.absolutePath() + d.separator();
-                        else
-                            database_dir = cur_app_path + d.separator();
-                    }
-                }
-                else
-                    database_dir = cur_app_path + d.separator();
-            }
-            else
-                database_dir = cur_app_path + d.separator();
-        }
-    }
-    else
-        database_dir = cur_app_path + QDir::separator();
-#else
-    database_dir = a.applicationDirPath() + QDir::separator();
-#endif
+    const QString database_dir = resolveDataDir();
+
 #ifdef Q_OS_WIN
     // Use Dark Theme
+    // NOTE (modernization): this previously read a registry value named
+    // "SoftProjectorUseLightTheme", which Windows never actually writes -
+    // that name does not exist, so this always read as "not set" and dark-mode
+    // auto-detection never actually triggered from the real OS setting. The
+    // real value Windows 10/11 write here is the DWORD "AppsUseLightTheme"
+    // (0 = system is in Dark mode, 1 = Light mode). QSettings reads registry
+    // DWORDs back as int, so this is compared as an int, not a QVariant.
     QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",QSettings::NativeFormat);
-    if(settings.value("SoftProjectorUseLightTheme")==0)
+    if(settings.value("AppsUseLightTheme", 1).toInt() == 0)
     {
         // Check if ini exists
-        QString iniFilePath = qApp->applicationDirPath()+"\\DarkTheme.ini";
+        QString iniFilePath = database_dir + "DarkTheme.ini";
         bool darkTheme_Exists = ( QFile::exists(iniFilePath) );
         QString darkColor,disabledColor,custom,WindowText,Base,ToolTipBase,ToolTipText,Text,ButtonText,BrightText,Link,Highlight,HighlightedText;
 
@@ -228,35 +254,35 @@ int main(int argc, char *argv[])
             HighlightedText = settings.value("Settings/HighlightedText","#FFFFFF").value<QString>();
         } else {
             // Create settings
-            QSettings* settings = new QSettings(iniFilePath, QSettings::IniFormat);
-            settings->setValue("Settings/darkColor","#2D2D2D");
+            QSettings iniSettings(iniFilePath, QSettings::IniFormat);   // was heap-allocated and leaked
+            iniSettings.setValue("Settings/darkColor","#2D2D2D");
             darkColor = "#2D2D2D";
-            settings->setValue("Settings/disabledColor","#7F7F7F");
+            iniSettings.setValue("Settings/disabledColor","#7F7F7F");
             disabledColor = "#7F7F7F";
-            settings->setValue("Settings/custom","QToolTip { color: #ffffff; background-color: #15416d; border: 1px solid white; } QGroupBox { color: #e7d1ad; }");
+            iniSettings.setValue("Settings/custom","QToolTip { color: #ffffff; background-color: #15416d; border: 1px solid white; } QGroupBox { color: #e7d1ad; }");
             custom = "QToolTip { color: #ffffff; background-color: #15416d; border: 1px solid white; } QGroupBox { color: #e7d1ad; }";
-            settings->setValue("Settings/WindowText","#FFFFFF");
+            iniSettings.setValue("Settings/WindowText","#FFFFFF");
             WindowText = "#FFFFFF";
-            settings->setValue("Settings/Base","#121212");
+            iniSettings.setValue("Settings/Base","#121212");
             Base = "#121212";
-            settings->setValue("Settings/ToolTipBase","#FFFFFF");
+            iniSettings.setValue("Settings/ToolTipBase","#FFFFFF");
             ToolTipBase = "#FFFFFF";
-            settings->setValue("Settings/ToolTipText","#FFFFFF");
+            iniSettings.setValue("Settings/ToolTipText","#FFFFFF");
             ToolTipText = "#FFFFFF";
-            settings->setValue("Settings/Text","#cccccc");
+            iniSettings.setValue("Settings/Text","#cccccc");
             Text = "#cccccc";
-            settings->setValue("Settings/ButtonText","#FFFFFF");
+            iniSettings.setValue("Settings/ButtonText","#FFFFFF");
             ButtonText = "#FFFFFF";
-            settings->setValue("Settings/BrightText","#FF0000");
+            iniSettings.setValue("Settings/BrightText","#FF0000");
             BrightText = "#FF0000";
-            settings->setValue("Settings/Link","#2A82DA");
+            iniSettings.setValue("Settings/Link","#2A82DA");
             Link = "#2A82DA";
-            settings->setValue("Settings/Highlight","#15416D");
+            iniSettings.setValue("Settings/Highlight","#15416D");
             Highlight = "#15416D";
-            settings->setValue("Settings/HighlightedText","#FFFFFF");
+            iniSettings.setValue("Settings/HighlightedText","#FFFFFF");
             HighlightedText = "#FFFFFF";
-            settings->setValue("Example/Use_this_to_generate_Hex_codes","https://www.color-hex.com/color/ffffff");
-            settings->sync();
+            iniSettings.setValue("Example/Use_this_to_generate_Hex_codes","https://www.color-hex.com/color/ffffff");
+            iniSettings.sync();
         }
 
         // Apply settings to palette
@@ -285,15 +311,8 @@ int main(int argc, char *argv[])
 #endif
 
     // Try to connect to database
-    if( !connect(database_dir) )
-    {
-        QMessageBox mb;
-        mb.setText("Failed to connect to database 'spData.sqlite'");
-        mb.setWindowTitle("Database File Error");
-        mb.setIcon(QMessageBox::Critical);
-        mb.exec();
-        return 1;
-    }
+    if( !openDatabase(database_dir) )
+        return 1;   // openDatabase() already showed a detailed error
     // Connected to the database OK:
 
     // Make sure that database is of correct version
@@ -318,10 +337,18 @@ int main(int argc, char *argv[])
         return 1;
     }
     // Database is of correct version
+    sq.finish();
+    ensureIndexes();
 
     SoftProjector w;
     w.setAppDataDir(QDir(database_dir));
     w.show();
     splash.finish(&w);
-    return a.exec();
+    const int rc = a.exec();
+    {
+        // Let SQLite refresh its query-planner statistics (recommended at close)
+        QSqlQuery optimize;
+        optimize.exec(QStringLiteral("PRAGMA optimize"));
+    }
+    return rc;
 }

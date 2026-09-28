@@ -320,7 +320,7 @@ void BibleWidget::on_search_button_clicked()
     search_text = clean(search_text); // remove all none alphanumeric charecters
 
     // Make sure that there is some text to do a search for, if none, then return
-    if(search_text.count()<1)
+    if(search_text.isEmpty())
     {
         ui->search_ef->clear();
         ui->search_ef->setPlaceholderText(tr("Please enter search text"));

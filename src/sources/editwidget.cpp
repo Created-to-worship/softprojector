@@ -421,7 +421,10 @@ int EditWidget::isInDatabase(Song *song)
     QSqlQuery sq;
 
     // check if song is part of songbook
-    sq.exec("SELECT id FROM Songbooks WHERE name = '" + song->songbook_name + "'");
+    // Bound parameters: songbook names like "Children's Songs" broke this query
+    sq.prepare("SELECT id FROM Songbooks WHERE name = ?");
+    sq.addBindValue(song->songbook_name);
+    sq.exec();
     while(sq.next())
         sb_id = sq.value(0).toString().trimmed();
     sq.clear();
@@ -429,7 +432,10 @@ int EditWidget::isInDatabase(Song *song)
         return 0; // no such songbook in database
 
     // get song id
-    sq.exec("SELECT id, title from Songs WHERE songbook_id = '" + sb_id +"' AND number = '" + QString::number(song->number) +"'");
+    sq.prepare("SELECT id, title FROM Songs WHERE songbook_id = ? AND number = ?");
+    sq.addBindValue(sb_id.toInt());
+    sq.addBindValue(song->number);
+    sq.exec();
     while(sq.next())
     {
         s_id = sq.value(0).toString().trimmed();
@@ -476,10 +482,11 @@ void EditWidget::updateEndingColor()
 void EditWidget::on_pushButtonPrint_clicked()
 {
     setSave();
-    PrintPreviewDialog* p;
-    p = new PrintPreviewDialog(this);
-    p->setText(newSong);
-    p->exec();
+    // Stack object: this used to allocate a PrintPreviewDialog (and its QPrinter)
+    // on every click and never free it for the life of the editor.
+    PrintPreviewDialog p(this);
+    p.setText(newSong);
+    p.exec();
 }
 
 void EditWidget::on_toolButtonMainColor_clicked()

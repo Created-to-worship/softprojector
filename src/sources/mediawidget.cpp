@@ -22,9 +22,23 @@
 #include "../headers/mediawidget.hpp"
 #include "ui_mediawidget.h"
 
-#ifdef Q_OS_WIN
-#include <Windows.h>// this need for Sleep function
-#endif
+namespace {
+// The Media table stores plain local paths ("C:/Videos/a.mp4"). Wrapping that in
+// QUrl(...) parses "C:" as a URL scheme, so media added in an earlier session
+// could not be played on Windows. Accept both local paths and real URLs.
+QUrl urlFromStoredPath(const QString &stored)
+{
+    if (stored.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)
+        || stored.contains(QLatin1String("://")))
+        return QUrl(stored);
+    return QUrl::fromLocalFile(stored);
+}
+
+QString storedPathFromUrl(const QUrl &url)
+{
+    return url.isLocalFile() ? url.toLocalFile() : url.toString();
+}
+}
 
 MediaWidget::MediaWidget(QWidget *parent) :
     QWidget(parent),
@@ -33,31 +47,40 @@ MediaWidget::MediaWidget(QWidget *parent) :
     ui->setupUi(this);
     isReadyToPlay = false;
     player = new QMediaPlayer(this);
+    // Qt6: QMediaPlayer no longer carries volume/mute itself - it plays through
+    // a QAudioOutput sink, which is what now owns volume/mute state.
+    audioOutput = new QAudioOutput(this);
+    player->setAudioOutput(audioOutput);
 
     mediaControls = new MediaControl(this);
      ui->horizontalLayoutControls->addWidget(mediaControls);
 
-    connect(player, SIGNAL(metaDataChanged()), this, SLOT(updateInfo()));
-    connect(player, SIGNAL(mediaStatusChanged(QMediaPlayer::MediaStatus)),
-            this, SLOT(statusChanged(QMediaPlayer::MediaStatus)));
-//    connect(player, SIGNAL(bufferStatusChanged(int)), this, SLOT(bufferingProgress(int)));
-    connect(player, SIGNAL(videoAvailableChanged(bool)), this, SLOT(hasVideoChanged(bool)));
-//    connect(player, SIGNAL(error(QMediaPlayer::Error)), this, SLOT(displayErrorMessage()));
+    // Modernized (Qt6) connect syntax: pointer-to-member instead of the
+    // old SIGNAL()/SLOT() string macros. This restores compile-time type
+    // checking and fixes signals/slots that were silently renamed in Qt6
+    // (stateChanged -> playbackStateChanged, error -> errorOccurred, and
+    // volume/mute moving from QMediaPlayer to QAudioOutput).
+    connect(player, &QMediaPlayer::metaDataChanged, this, &MediaWidget::updateInfo);
+    connect(player, &QMediaPlayer::mediaStatusChanged, this, &MediaWidget::statusChanged);
+    connect(player, &QMediaPlayer::hasVideoChanged, this, &MediaWidget::hasVideoChanged);
+    connect(player, &QMediaPlayer::errorOccurred, this, &MediaWidget::displayErrorMessage);
 
+    connect(mediaControls, &MediaControl::muted, audioOutput, &QAudioOutput::setMuted);
+    connect(mediaControls, &MediaControl::play, player, &QMediaPlayer::play);
+    connect(mediaControls, &MediaControl::pause, player, &QMediaPlayer::pause);
+    connect(mediaControls, &MediaControl::stop, player, &QMediaPlayer::stop);
+    connect(mediaControls, &MediaControl::timeChanged, player, &QMediaPlayer::setPosition);
+    connect(mediaControls, &MediaControl::volumeChanged, this, [this](int level) {
+        audioOutput->setVolume(level / 100.0f); // MediaControl UI uses 0-100; QAudioOutput uses 0.0-1.0
+    });
 
-    connect(mediaControls, SIGNAL(muted(bool)),player,SLOT(setMuted(bool)));
-    connect(mediaControls, SIGNAL(play()),player,SLOT(play()));
-    connect(mediaControls, SIGNAL(pause()),player,SLOT(pause()));
-    connect(mediaControls, SIGNAL(stop()),player,SLOT(stop()));
-    connect(mediaControls, SIGNAL(timeChanged(qint64)),player,SLOT(setPosition(qint64)));
-    connect(mediaControls, SIGNAL(volumeChanged(int)),player,SLOT(setVolume(int)));
-
-
-    connect(player, SIGNAL(stateChanged(QMediaPlayer::State)), mediaControls, SLOT(updatePlayerState(QMediaPlayer::State)));
-    connect(player, SIGNAL(error(QMediaPlayer::Error)), this, SLOT(displayErrorMessage()));
-    connect(player, SIGNAL(durationChanged(qint64)), mediaControls, SLOT(setMaximumTime(qint64)));
-    connect(player, SIGNAL(positionChanged(qint64)), mediaControls, SLOT(updateTime(qint64)));
-    connect(player, SIGNAL(volumeChanged(int)),mediaControls,SLOT(setVolume(int)));
+    connect(player, &QMediaPlayer::playbackStateChanged, mediaControls, &MediaControl::updatePlayerState);
+    connect(player, &QMediaPlayer::durationChanged, mediaControls, &MediaControl::setMaximumTime);
+    connect(player, &QMediaPlayer::positionChanged, mediaControls, &MediaControl::updateTime);
+    connect(audioOutput, &QAudioOutput::volumeChanged, this, [this](float level) {
+        // qRound, not a cast: 0.29f*100 == 28.99999 -> the slider crept down a step per change
+        mediaControls->setVolume(qRound(level * 100.0f));
+    });
   videoWidget = new VideoPlayerWidget(this);
     player->setVideoOutput(videoWidget);
 
@@ -92,8 +115,8 @@ MediaWidget::MediaWidget(QWidget *parent) :
 
     setAcceptDrops(true);
 
-    audioExt = "*.mp3 *.acc *.ogg *.oga *.wma *.wav *.asf *.mka";
-    videoExt = "*.wmv *.avi *.mkv *.flv *.mp4 *.mpg *.mpeg *.mov *.ogv *.ts";
+    audioExt = "*.mp3 *.aac *.m4a *.flac *.opus *.ogg *.oga *.wma *.wav *.asf *.mka";   // was "*.acc" (typo)
+    videoExt = "*.wmv *.avi *.mkv *.flv *.mp4 *.m4v *.webm *.mpg *.mpeg *.mov *.ogv *.ts";
     loadMediaLibrary();
 }
 
@@ -122,14 +145,15 @@ void MediaWidget::changeEvent(QEvent *e)
 void MediaWidget::loadMediaLibrary()
 {
     QSqlQuery sq;
-    sq.exec("SELECT * FROM Media");
+    sq.exec("SELECT long_path, short_path FROM Media");
     while(sq.next())
     {
-        mediaFilePaths.append(sq.value(0).toString());
+        mediaFilePaths.append(urlFromStoredPath(sq.value(0).toString()));
         mediaFileNames.append(sq.value(1).toString());
-        ui->listWidgetMediaFiles->clear();
-        ui->listWidgetMediaFiles->addItems(mediaFileNames);
     }
+    // (the list used to be cleared and refilled once per row - O(n^2))
+    ui->listWidgetMediaFiles->clear();
+    ui->listWidgetMediaFiles->addItems(mediaFileNames);
 }
 
 void MediaWidget::statusChanged(QMediaPlayer::MediaStatus status)
@@ -146,11 +170,19 @@ void MediaWidget::statusChanged(QMediaPlayer::MediaStatus status)
                                .arg(tr("Media Stalled")));
         break;
     case QMediaPlayer::InvalidMedia:
+        pendingGoLive = false;
         displayErrorMessage();
         break;
     case QMediaPlayer::LoadedMedia:
     case QMediaPlayer::BufferedMedia:
         isReadyToPlay = true;
+        if(pendingGoLive)
+        {
+            pendingGoLive = false;
+            goLiveNow();
+        }
+        break;
+    default:
         break;
     }
 }
@@ -182,16 +214,13 @@ void MediaWidget::handleDrop(QDropEvent *e)
     QStringList fileNameList;
 
     // Make sure that only supported files get to media player
-    QString fext = audioExt + " " + videoExt;
-    fext.remove("*");
-    fext.replace(" ","$|");
-    fext.append("$");
-    QRegularExpression rx(fext);
-    rx.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
-    foreach(const QUrl &url, urls)
+    // (compare real suffixes; the old regex left '.' unescaped)
+    const QStringList exts = QString(audioExt + " " + videoExt).remove('*').remove('.')
+                                 .split(' ', Qt::SkipEmptyParts);
+    for(const QUrl &url : std::as_const(urls))
     {
         QString fp = url.toLocalFile();
-        if(fp.contains(rx))
+        if(!fp.isEmpty() && exts.contains(QFileInfo(fp).suffix(), Qt::CaseInsensitive))
         {
             QFileInfo fn(fp);
             fileList.append(fp);
@@ -236,6 +265,7 @@ void MediaWidget::dragMoveEvent(QDragMoveEvent *e)
 void MediaWidget::playFile(QUrl filePath)
 {
     isReadyToPlay = false;
+    pendingGoLive = false;
     player->stop();
     currentMediaUrl = filePath;
     QUrl m(filePath);
@@ -252,7 +282,7 @@ void MediaWidget::updateInfo()
     QString tAlbum = md.stringValue(QMediaMetaData::AlbumTitle);
     QString tTitle = md.stringValue(QMediaMetaData::Title);
     QString tArtist = md.stringValue(QMediaMetaData::AlbumArtist);
-    int tBitrate = md.stringValue(QMediaMetaData::AudioBitRate).toInt();
+    int tBitrate = md.value(QMediaMetaData::AudioBitRate).toInt();
 
     if (fName.length() > maxLength)
         fName = fName.left(maxLength) + "...";
@@ -296,13 +326,18 @@ void MediaWidget::updateInfo()
 void MediaWidget::insertFiles(QStringList &files)
 {
     // Insert filenames and path into appropriate lists and database
+    // Bound parameters: a file such as "Bob's Song.mp3" used to break the INSERT
     QSqlQuery sq;
-    foreach(const QString &file, files)
+    sq.prepare("INSERT INTO Media (long_path, short_path) VALUES(?, ?)");
+    for(const QString &file : std::as_const(files))
     {
         QFileInfo f(file);
         mediaFileNames.append(f.fileName());
         mediaFilePaths.append(QUrl::fromLocalFile(file));
-        sq.exec(QString("INSERT INTO Media (long_Path, short_path) VALUES('%1', '%2')").arg(file).arg(f.fileName()));
+        sq.bindValue(0, file);
+        sq.bindValue(1, f.fileName());
+        if(!sq.exec())
+            qWarning() << "Media: could not add" << file << sq.lastError().text();
         ui->listWidgetMediaFiles->addItem(f.fileName());
     }
 }
@@ -351,8 +386,13 @@ void MediaWidget::removeFromLibrary()
     int cm = ui->listWidgetMediaFiles->currentRow();
     if(cm>=0)
     {
+        // Delete by full path (deleting by file name removed every same-named
+        // file from other folders too) and with bound parameters.
         QSqlQuery sq;
-        sq.exec("DELETE FROM Media WHERE short_path = '" +mediaFileNames.at(cm)+ "'");
+        sq.prepare("DELETE FROM Media WHERE long_path = ? OR long_path = ?");
+        sq.addBindValue(storedPathFromUrl(mediaFilePaths.at(cm)));
+        sq.addBindValue(mediaFilePaths.at(cm).toString());
+        sq.exec();
         mediaFilePaths.removeAt(cm);
         mediaFileNames.removeAt(cm);
 
@@ -387,6 +427,8 @@ VideoInfo MediaWidget::getMedia()
 {
     VideoInfo v;
     int cm = ui->listWidgetMediaFiles->currentRow();
+    if(cm < 0 || cm >= mediaFileNames.count() || cm >= mediaFilePaths.count())
+        return v;   // nothing selected (at(-1) used to crash)
     v.fileName = mediaFileNames.at(cm);
     v.filePath = mediaFilePaths.at(cm);
     return v;
@@ -406,27 +448,22 @@ void MediaWidget::setMediaFromSchedule(VideoInfo &v)
 
 void MediaWidget::goLiveFromSchedule()
 {
-    while (!isReadyToPlay)
-    {
-        int ms = 1000;
-#ifdef Q_OS_WIN
-        Sleep(uint(ms));
-#else
-        struct timespec ts = { ms / 1000, (ms % 1000) * 1000 * 1000 };
-        nanosleep(&ts, nullptr);
-#endif
-    }
-    qDebug()<<videoWidget->isVisible()<<ui->pushButtonGoLive->isEnabled();
-    if(ui->pushButtonGoLive->isEnabled())
-    {
-        qDebug()<<"Go Live is Enabled";
-        prepareForProjection();
-    }
+    // This used to sleep() in a loop on the GUI thread until isReadyToPlay
+    // became true. That flag is set by statusChanged(), which can only run once
+    // the event loop is free again - so the whole application could hang forever.
+    // Now we defer until the player reports LoadedMedia/BufferedMedia.
+    if(isReadyToPlay)
+        goLiveNow();
     else
-    {
-        qDebug()<<"Start Playing";
-        player->play();
-    }
+        pendingGoLive = true;
+}
+
+void MediaWidget::goLiveNow()
+{
+    if(player->hasVideo())
+        prepareForProjection();
+    else
+        player->play();   // audio only: play in the operator's player
 }
 
 bool MediaWidget::isValidMedia()

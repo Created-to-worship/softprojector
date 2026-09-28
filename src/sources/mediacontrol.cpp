@@ -48,34 +48,18 @@ void MediaControl::setVolume(int level)
 
 void MediaControl::updateTime(qint64 time)
 {
-    ui->horizontalSliderTime->setValue(time/1000);
+    // Don't yank the handle away while the user is dragging it
+    if(!ui->horizontalSliderTime->isSliderDown())
+        ui->horizontalSliderTime->setValue(static_cast<int>(time/1000));
 
     QString timeString;
     if (time || mDuration)
     {
-        int sec = time/1000;
-        int min = sec/60;
-        int hour = min/60;
-        int msec = time;
-
-        QTime playTime(hour%60, min%60, sec%60, msec%1000);
-        sec = mDuration / 1000;
-        min = sec / 60;
-        hour = min / 60;
-        msec = mDuration;
-
-        QTime stopTime(hour%60, min%60, sec%60, msec%1000);
-        QString timeFormat = "mm:ss";
-        if (hour > 0)
-        {
-            timeFormat = "h:mm:ss";
-        }
-
-        timeString = playTime.toString(timeFormat);
+        const QString timeFormat = (mDuration >= 3600 * 1000) ? QStringLiteral("h:mm:ss")
+                                                             : QStringLiteral("mm:ss");
+        timeString = QTime(0, 0).addMSecs(static_cast<int>(time)).toString(timeFormat);
         if (mDuration)
-        {
-            timeString += " / " + stopTime.toString(timeFormat);
-        }
+            timeString += " / " + QTime(0, 0).addMSecs(static_cast<int>(mDuration)).toString(timeFormat);
     }
     ui->labelTime->setText(timeString);
 }
@@ -143,8 +127,11 @@ void MediaControl::on_horizontalSliderTime_sliderReleased()
     emit timeChanged(ui->horizontalSliderTime->value() * 1000);
 }
 
-void MediaControl::on_horizontalSliderVolume_sliderMoved(int position)
+void MediaControl::on_horizontalSliderVolume_valueChanged(int value)
 {
-    emit volumeChanged(position);
+    // valueChanged (not sliderMoved) so keyboard, mouse wheel and clicks on the
+    // groove change the volume too. Receivers ignore unchanged values, so the
+    // setVolume() -> valueChanged -> volumeChanged round trip terminates.
+    emit volumeChanged(value);
 }
 

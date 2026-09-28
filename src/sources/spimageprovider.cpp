@@ -26,10 +26,15 @@ SpImageProvider::SpImageProvider() :
 
 QPixmap SpImageProvider::requestPixmap(const QString &id, QSize *size, const QSize &requestedSize)
 {
+    Q_UNUSED(id)
+    Q_UNUSED(requestedSize)
+    // The QQuickImageProvider contract requires reporting the original size
+    if (size)
+        *size = m_pixmap.size();
     return m_pixmap;
 }
 
-void SpImageProvider::setPixMap(QPixmap &p)
+void SpImageProvider::setPixMap(const QPixmap &p)
 {
     m_pixmap = p;
 }

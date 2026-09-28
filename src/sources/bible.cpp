@@ -19,6 +19,29 @@
 
 #include "../headers/bible.hpp"
 
+namespace {
+// Per-word patterns for "contains all words" searches, compiled ONCE per search.
+// They used to be constructed inside the verse loop, i.e. recompiled for every
+// verse of the Bible (~31,000 times per word).
+QList<QRegularExpression> wordPatterns(const QString &alternation)
+{
+    QList<QRegularExpression> out;
+    const QStringList words = alternation.split(QLatin1Char('|'), Qt::SkipEmptyParts);
+    for (const QString &w : words)
+        out.append(QRegularExpression(QStringLiteral("\\b") + w + QStringLiteral("\\b"),
+                                      QRegularExpression::CaseInsensitiveOption));
+    return out;
+}
+
+bool containsAll(const QString &text, const QList<QRegularExpression> &patterns)
+{
+    for (const QRegularExpression &rx : patterns)
+        if (!text.contains(rx))
+            return false;
+    return !patterns.isEmpty();
+}
+}
+
 Bible::Bible()
 {
 }
@@ -302,6 +325,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
     QString sw = searchExp.pattern();
     sw.remove("\\b(");
     sw.remove(")\\b");
+    const QList<QRegularExpression> wordPats = wordPatterns(sw);
 
     foreach(const BibleVerse &bv,operatorBible)
     {
@@ -309,14 +333,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
         {
             if(allWords)
             {
-                QStringList stl = sw.split("|");
-                bool hasAll = false;
-                for (int j(0);j<stl.count();++j)
-                {
-                    hasAll = bv.verseText.contains(QRegularExpression("\\b"+stl.at(j)+"\\b",QRegularExpression::CaseInsensitiveOption));
-                    if(!hasAll)
-                        break;
-                }
+                const bool hasAll = containsAll(bv.verseText, wordPats);
                 if(hasAll)
                     addSearchResult(bv,return_results);
             }
@@ -337,6 +354,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
     QString sw = searchExp.pattern();
     sw.remove("\\b(");
     sw.remove(")\\b");
+    const QList<QRegularExpression> wordPats = wordPatterns(sw);
 
     foreach(const BibleVerse &bv,operatorBible)
     {
@@ -344,14 +362,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
         {
             if(allWords)
             {
-                QStringList stl = sw.split("|");
-                bool hasAll = false;
-                for (int j(0);j<stl.count();++j)
-                {
-                    hasAll = bv.verseText.contains(QRegularExpression("\\b"+stl.at(j)+"\\b",QRegularExpression::CaseInsensitiveOption));
-                    if(!hasAll)
-                        break;
-                }
+                const bool hasAll = containsAll(bv.verseText, wordPats);
                 if(hasAll)
                     addSearchResult(bv,return_results);
             }
@@ -371,6 +382,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
     QString sw = searchExp.pattern();
     sw.remove("\\b(");
     sw.remove(")\\b");
+    const QList<QRegularExpression> wordPats = wordPatterns(sw);
 
     foreach(const BibleVerse &bv,operatorBible)
     {
@@ -378,14 +390,7 @@ QList<BibleSearch> Bible::searchBible(bool allWords, QRegularExpression searchEx
         {
             if(allWords)
             {
-                QStringList stl = sw.split("|");
-                bool hasAll = false;
-                for (int j(0);j<stl.count();++j)
-                {
-                    hasAll = bv.verseText.contains(QRegularExpression("\\b"+stl.at(j)+"\\b",QRegularExpression::CaseInsensitiveOption));
-                    if(!hasAll)
-                        break;
-                }
+                const bool hasAll = containsAll(bv.verseText, wordPats);
                 if(hasAll)
                     addSearchResult(bv,return_results);
             }
