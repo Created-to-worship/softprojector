@@ -103,4 +103,11 @@
     <qresource prefix="/qml">
         <file>qml/DisplayArea.qml</file>
     </qresource>
+    <qresource prefix="/translations">
+        <file alias="flag_cs.png">translations/flag_cs.png</file>
+        <file alias="flag_de.png">translations/flag_de.png</file>
+        <file alias="flag_hy.png">translations/flag_hy.png</file>
+        <file alias="flag_ru.png">translations/flag_ru.png</file>
+        <file alias="flag_ua.png">translations/flag_ua.png</file>
+    </qresource>
 </RCC>

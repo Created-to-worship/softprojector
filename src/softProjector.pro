@@ -31,7 +31,13 @@ QT += core \
 
 TARGET = SoftProjector
 TEMPLATE = app
-CONFIG += x86 ppc x86_64 ppc64 # Compile a universal build
+# Qt 6 requires C++17. The old "x86 ppc x86_64 ppc64" universal-binary
+# CONFIG line (Qt4/PowerPC era) was removed; it was inert.
+CONFIG += c++17
+# Compile .ts -> .qm at build time and embed them under :/translations/
+CONFIG += lrelease embed_translations
+QM_FILES_RESOURCE_PREFIX = /translations
+lessThan(QT_MAJOR_VERSION, 6): error("SoftProjector requires Qt 6.4 or newer")
 
 RES_DIR = $${PWD}/unknownsys_build
 win32: RES_DIR = $${PWD}/win32_build
@@ -164,7 +170,6 @@ TRANSLATIONS += translations/softpro_de.ts\
     translations/softpro_cs.ts\
     translations/softpro_ua.ts\
     translations/softpro_hy.ts
-CODECFORTR = UTF-8
 RESOURCES += softprojector.qrc
 
 win32 {
