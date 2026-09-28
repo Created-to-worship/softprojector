@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0
+- Version bumped to 3.0.
+- Fixed crash (segfault) when opening Settings with no Bibles installed.
+- Added David Demchenkov to the developers list in the About dialog.
+- Fixed typos in the About dialog title and subtitle.
+- Modern flat icon set replacing all 99 legacy icons.
+
 ## Unreleased — performance, memory and modernization pass
 - ~300× faster Bible verse display via database indexes (created automatically once).
 - Much lower memory: song backgrounds and slide-show images are decoded on demand;

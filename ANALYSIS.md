@@ -145,6 +145,31 @@ window container), widgets handed to layouts/tab widgets, and all `ui` objects.
   non-public members of another class (string connects never needed access).
 * 31 `parent = 0` defaults → `nullptr`; `override` / `const&` on the image provider.
 
+## G. Version 3.0 changes
+
+**Version bump:** 2.2 → 3.0 in `softprojector.cpp`.
+
+**Crash fix — Settings dialog with no Bibles installed.**
+The backtrace: `updateSecondaryBibleMenu()` ← `loadBibleVersions()` ←
+`SettingsDialog::loadSettings()` ← `SoftProjector::on_actionSettings_triggered()`.
+
+Root cause: when no Bibles are in the database, every primary-Bible combo box is
+empty and `currentIndex()` returns -1. Nine functions then called
+`QList::removeAt(-1)`, which is undefined behaviour and segfaulted:
+
+* `updateSecondaryBibleMenu()` / 2 / 3 / 4
+* `updateTrinaryBibleMenu()` / 2 / 3 / 4
+* `updateOperatorBibleMenu()`
+
+Fix: `loadBibleVersions()` returns early when `bibles.isEmpty()` (no combo boxes
+to set up). Every `removeAt()` call is also individually guarded with a bounds
+check, so even if `loadBibleVersions()` is refactored later, no combination of
+empty or mismatched lists can crash.
+
+**About dialog:** David Demchenkov added to developers; title fixed from
+"About softProjecor" to "About SoftProjector"; subtitle typo "open souce" →
+"open source".
+
 ## E. Recommended next steps
 1. Push and let CI compile. Fix any residual warnings with `-Werror` in a branch.
 2. Convert the remaining string-built SQL (all remaining cases interpolate internal integer ids, so they are not exploitable, but bound parameters are cheaper to review).
